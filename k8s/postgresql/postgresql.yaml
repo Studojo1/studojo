@@ -1,0 +1,137 @@
+# PostgreSQL StatefulSet for development/testing
+# For production, use Azure Database for PostgreSQL instead
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+  namespace: studojo
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: managed-csi  # Azure Disk for AKS
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: studojo
+data:
+  01-pgvector.sql: |
+    CREATE EXTENSION IF NOT EXISTS vector;
+
+    -- Resumes table for storing user resumes
+    CREATE TABLE IF NOT EXISTS "resumes" (
+    	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    	"user_id" text NOT NULL,
+    	"name" text NOT NULL,
+    	"resume_data" jsonb NOT NULL,
+    	"created_at" timestamp DEFAULT now() NOT NULL,
+    	"updated_at" timestamp DEFAULT now() NOT NULL
+    );
+
+    ALTER TABLE "resumes" ADD CONSTRAINT "resumes_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
+
+    CREATE INDEX IF NOT EXISTS "resumes_user_created_idx" ON "resumes" USING btree ("user_id","created_at" DESC);
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: studojo
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: pgvector/pgvector:pg16
+        ports:
+        - containerPort: 5432
+          name: postgres
+        env:
+        - name: POSTGRES_USER
+          value: "studojo"
+        - name: POSTGRES_PASSWORD
+          value: "studojo"  # For dev only - use secret in production
+        - name: POSTGRES_DB
+          value: "postgres"
+        - name: PGDATA
+          value: /data/pgdata
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /data
+        - name: postgres-init
+          mountPath: /docker-entrypoint-initdb.d
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - studojo
+            - -d
+            - postgres
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 5
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - studojo
+            - -d
+            - postgres
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 5
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+      volumes:
+      - name: postgres-init
+        configMap:
+          name: postgres-init
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 20Gi
+      storageClassName: managed-csi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: studojo
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+    name: postgres
+  selector:
+    app: postgres

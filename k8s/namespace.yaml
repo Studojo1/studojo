@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: studojo
+  labels:
+    name: studojo
+    environment: production

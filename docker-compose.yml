@@ -1,0 +1,219 @@
+# studojo-v2 stack
+# Ports: postgres 5432 | rabbitmq 5672 | control-plane 8080 | frontend 3000 | adminer 8081
+# Frontend: http://localhost:3000 | Control plane: http://localhost:8080 | Adminer: http://localhost:8081
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-pgvector.sql
+    environment:
+      POSTGRES_USER: studojo
+      POSTGRES_PASSWORD: studojo
+      POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U studojo -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  rabbitmq:
+    image: rabbitmq:latest
+    ports:
+      - "5672:5672"
+    volumes:
+      - rabbitmq_data:/data
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  control-plane:
+    build:
+      context: ./services/control-plane
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgresql://studojo:studojo@postgres:5432/postgres
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      JWKS_URL: http://frontend:3000/api/auth/jwks
+      HTTP_PORT: "8080"
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-rzp_test_yLageEyPxSrRxG}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-pWKxbij31gPScaRELEhrHdvY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  frontend-db-push:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: db-push
+    environment:
+      DATABASE_URL: postgresql://studojo:studojo@postgres:5432/postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_CONTROL_PLANE_URL: http://localhost:8080
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./frontend/.env.local
+    environment:
+      DATABASE_URL: postgresql://studojo:studojo@postgres:5432/postgres
+      BETTER_AUTH_URL: http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      frontend-db-push:
+        condition: service_completed_successfully
+
+  localstack:
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"
+      - "4510-4559:4510-4559"
+    environment:
+      SERVICES: s3
+      DEBUG: "1"
+      DOCKER_HOST: unix:///var/run/docker.sock
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  localstack-init:
+    image: amazon/aws-cli:latest
+    depends_on:
+      localstack:
+        condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Waiting for LocalStack S3..."
+        until curl -s http://localstack:4566/_localstack/health | grep -q '"s3": "available"'; do
+          sleep 2
+        done
+        echo "Creating buckets..."
+        aws --endpoint-url=http://localstack:4566 s3 mb s3://assignments || echo "assignments bucket exists"
+        aws --endpoint-url=http://localstack:4566 s3 mb s3://resumes || echo "resumes bucket exists"
+        echo "Buckets ready!"
+    restart: "no"
+
+  assignment-gen:
+    build:
+      context: ./services/assignment-gen
+      dockerfile: Dockerfile
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      PYTHONPATH: /app/src:/app
+    volumes:
+      - ./services/assignment-gen/src:/app/src:ro
+      - ./services/assignment-gen/worker_generate.py:/app/worker_generate.py:ro
+    depends_on:
+      - postgres
+
+  assignment-gen-worker:
+    build:
+      context: ./services/assignment-gen-worker
+      dockerfile: Dockerfile
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      RESULTS_EXCHANGE: cp.results
+      USE_LOCALSTACK: "true"
+      LOCALSTACK_ENDPOINT: http://localstack:4566
+      AZURE_STORAGE_ACCOUNT_NAME: assignments
+      AZURE_STORAGE_ACCOUNT_KEY: test
+      AZURE_STORAGE_CONTAINER_NAME: assignments
+      PYTHON_PATH: python3
+      ASSIGNMENT_GEN_SCRIPT_PATH: /app/assignment-gen/worker_generate.py
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      REPHRASY_API_KEY: ${REPHRASY_API_KEY}
+    volumes:
+      - ./services/assignment-gen:/app/assignment-gen:ro
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      assignment-gen:
+        condition: service_started
+      localstack:
+        condition: service_healthy
+      localstack-init:
+        condition: service_completed_successfully
+
+  resume-service:
+    build:
+      context: ./services/resume-svc
+      dockerfile: Dockerfile
+    ports:
+      - "8086:8086"
+    environment:
+      PORT: "8086"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  resume-worker:
+    build:
+      context: ./services/resume-worker
+      dockerfile: Dockerfile
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      RESULTS_EXCHANGE: cp.results
+      USE_LOCALSTACK: "true"
+      LOCALSTACK_ENDPOINT: http://localstack:4566
+      AZURE_STORAGE_ACCOUNT_NAME: test
+      AZURE_STORAGE_ACCOUNT_KEY: test
+      AZURE_STORAGE_CONTAINER_NAME: resumes
+      RESUME_SERVICE_URL: http://resume-service:8086
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      resume-service:
+        condition: service_started
+      localstack:
+        condition: service_healthy
+      localstack-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  adminer:
+    image: adminer:latest
+    ports:
+      - "8081:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  localstack_data:

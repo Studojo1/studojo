@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control-plane
+  namespace: studojo
+  labels:
+    app: control-plane
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: control-plane
+  template:
+    metadata:
+      labels:
+        app: control-plane
+    spec:
+      imagePullSecrets:
+      - name: acr-secret
+      initContainers:
+      - name: wait-for-postgres
+        image: postgres:16
+        command: ['sh', '-c', 'until pg_isready -h postgres.studojo.svc.cluster.local -U studojo; do echo "Waiting for PostgreSQL..."; sleep 2; done']
+      - name: wait-for-rabbitmq
+        image: rabbitmq:latest
+        command: ['sh', '-c', 'until rabbitmq-diagnostics -q ping -h rabbitmq.studojo.svc.cluster.local 2>/dev/null || nc -z rabbitmq.studojo.svc.cluster.local 5672; do echo "Waiting for RabbitMQ..."; sleep 2; done']
+      containers:
+      - name: control-plane
+        image: acrstudojo.azurecr.io/control-plane:latest
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: database-url
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: rabbitmq-url
+        - name: JWKS_URL
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: jwks-url
+        - name: HTTP_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: HTTP_PORT
+        - name: CORS_ORIGINS
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: CORS_ORIGINS
+        - name: RAZORPAY_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: razorpay-key-id
+        - name: RAZORPAY_KEY_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: razorpay-key-secret
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: control-plane
+  namespace: studojo
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: control-plane

@@ -1,0 +1,117 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: assignment-gen-worker
+  namespace: studojo
+  labels:
+    app: assignment-gen-worker
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: assignment-gen-worker
+  template:
+    metadata:
+      labels:
+        app: assignment-gen-worker
+    spec:
+      imagePullSecrets:
+      - name: acr-secret
+      initContainers:
+      - name: wait-for-rabbitmq
+        image: rabbitmq:latest
+        command: ['sh', '-c', 'until rabbitmq-diagnostics -q ping -h rabbitmq.studojo.svc.cluster.local 2>/dev/null || nc -z rabbitmq.studojo.svc.cluster.local 5672; do echo "Waiting for RabbitMQ..."; sleep 2; done']
+      containers:
+      - name: assignment-gen-worker
+        image: acrstudojo.azurecr.io/assignment-gen-worker:latest
+        env:
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: rabbitmq-url
+        - name: RESULTS_EXCHANGE
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: RESULTS_EXCHANGE
+        - name: USE_LOCALSTACK
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: USE_LOCALSTACK
+        - name: AZURE_STORAGE_ACCOUNT_NAME
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: azure-storage-account-name
+        - name: AZURE_STORAGE_ACCOUNT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: azure-storage-account-key
+        - name: AZURE_STORAGE_CONTAINER_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: AZURE_STORAGE_CONTAINER_NAME
+        - name: PYTHON_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: PYTHON_PATH
+        - name: ASSIGNMENT_GEN_SCRIPT_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: ASSIGNMENT_GEN_SCRIPT_PATH
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: openai-api-key
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: anthropic-api-key
+        - name: REPHRASY_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: rephrasy-api-key
+        # Note: The assignment-gen Python code should be baked into the Docker image
+        # or mounted via an init container. The volume mount from docker-compose
+        # should be replaced with either:
+        # 1. Baking the code into the image (recommended)
+        # 2. Using an init container to copy files
+        # 3. Using a ConfigMap if the files are small enough
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      # Optional: Add a service for metrics/monitoring if needed
+---
+# Optional: Service for metrics endpoint (if worker exposes one)
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: assignment-gen-worker
+#   namespace: studojo
+# spec:
+#   type: ClusterIP
+#   ports:
+#   - port: 9090
+#     targetPort: 9090
+#     protocol: TCP
+#     name: metrics
+#   selector:
+#     app: assignment-gen-worker

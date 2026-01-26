@@ -1,0 +1,25 @@
+# RabbitMQ Configuration
+# Disables guest user and sets up security
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-config
+  namespace: studojo
+data:
+  enabled_plugins: |
+    [rabbitmq_management].
+  rabbitmq.conf: |
+    # Disable guest user for security
+    loopback_users.guest = false
+    
+    # Management plugin settings
+    management.tcp.port = 15672
+    
+    # Logging
+    log.console = true
+    log.console.level = info
+    
+    # Memory and disk limits (adjust as needed)
+    vm_memory_high_watermark.relative = 0.4
+    disk_free_limit.absolute = 2GB

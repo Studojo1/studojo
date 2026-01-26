@@ -1,0 +1,18 @@
+[submodule "frontend"]
+	path = frontend
+	url = https://github.com/studojo/frontend.git
+[submodule "services/assignment-gen"]
+	path = services/assignment-gen
+	url = https://github.com/studojo/assignment-gen.git
+[submodule "services/assignment-gen-worker"]
+	path = services/assignment-gen-worker
+	url = https://github.com/studojo/assignment-gen-worker.git
+[submodule "services/control-plane"]
+	path = services/control-plane
+	url = https://github.com/studojo/control-plane.git
+[submodule "services/resume-svc"]
+	path = services/resume-svc
+	url = https://github.com/studojo/resume-svc.git
+[submodule "services/resume-worker"]
+	path = services/resume-worker
+	url = https://github.com/studojo/resume-worker.git

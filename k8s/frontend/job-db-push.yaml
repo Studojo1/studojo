@@ -1,0 +1,36 @@
+# One-time job to run database migrations
+# This should complete successfully before the frontend deployment starts
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: frontend-db-push
+  namespace: studojo
+spec:
+  template:
+    spec:
+      imagePullSecrets:
+      - name: acr-secret
+      initContainers:
+      - name: wait-for-postgres
+        image: postgres:16
+        command: ['sh', '-c', 'until pg_isready -h postgres.studojo.svc.cluster.local -U studojo; do echo "Waiting for PostgreSQL..."; sleep 2; done']
+      containers:
+      - name: db-push
+        image: acrstudojo.azurecr.io/frontend:latest
+        command: ["npm", "run", "db:push"]
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: database-url
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      restartPolicy: Never
+  backoffLimit: 3

@@ -1,0 +1,9 @@
+# Secrets - never commit actual secrets
+secrets/secrets.yaml
+secrets/*.yaml
+!secrets/secrets-template.yaml
+
+# Temporary files
+*.tmp
+*.bak
+*.swp

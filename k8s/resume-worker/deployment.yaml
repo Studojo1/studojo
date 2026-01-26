@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: resume-worker
+  namespace: studojo
+  labels:
+    app: resume-worker
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: resume-worker
+  template:
+    metadata:
+      labels:
+        app: resume-worker
+    spec:
+      imagePullSecrets:
+      - name: acr-secret
+      initContainers:
+      - name: wait-for-rabbitmq
+        image: rabbitmq:latest
+        command: ['sh', '-c', 'until rabbitmq-diagnostics -q ping -h rabbitmq.studojo.svc.cluster.local 2>/dev/null || nc -z rabbitmq.studojo.svc.cluster.local 5672; do echo "Waiting for RabbitMQ..."; sleep 2; done']
+      - name: wait-for-resume-service
+        image: curlimages/curl:latest
+        command: ['sh', '-c', 'until curl -f http://resume-service.studojo.svc.cluster.local:8086/health; do echo "Waiting for Resume Service..."; sleep 2; done']
+      containers:
+      - name: resume-worker
+        image: acrstudojo.azurecr.io/resume-worker:latest
+        env:
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: rabbitmq-url
+        - name: RESULTS_EXCHANGE
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: RESULTS_EXCHANGE_RESUME
+        - name: USE_LOCALSTACK
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: USE_LOCALSTACK_RESUME
+        - name: AZURE_STORAGE_ACCOUNT_NAME
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: azure-storage-account-name
+        - name: AZURE_STORAGE_ACCOUNT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: azure-storage-account-key
+        - name: AZURE_STORAGE_CONTAINER_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: AZURE_STORAGE_CONTAINER_NAME_RESUME
+        - name: RESUME_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: RESUME_SERVICE_URL
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      # Optional: Add a service for metrics/monitoring if needed

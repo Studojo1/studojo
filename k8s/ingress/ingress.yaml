@@ -1,0 +1,57 @@
+# Ingress configuration for external access
+# This uses the standard Kubernetes Ingress
+# For Azure, you can also use Azure Application Gateway Ingress Controller (AGIC)
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: studojo-ingress
+  namespace: studojo
+  annotations:
+    # For NGINX Ingress Controller
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # For Azure Application Gateway Ingress Controller
+    # appgw.ingress.kubernetes.io/ssl-redirect: "true"
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"  # If using cert-manager
+spec:
+  ingressClassName: nginx  # Change to "azure-application-gateway" if using AGIC
+  tls:
+  - hosts:
+    - studojo.com
+    - www.studojo.com
+    - api.studojo.com
+    secretName: studojo-tls-secret  # Create this secret with your TLS cert, or use cert-manager
+  rules:
+  # Frontend
+  - host: studojo.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 3000
+  - host: www.studojo.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 3000
+  # Control Plane API
+  - host: api.studojo.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: control-plane
+            port:
+              number: 8080
