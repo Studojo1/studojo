@@ -6,11 +6,11 @@ metadata:
 data:
   # Control Plane Config
   HTTP_PORT: "8080"
-  CORS_ORIGINS: "https://studojo.com,https://www.studojo.com"
+  CORS_ORIGINS: "https://studojo.pro,https://www.studojo.pro"
   
   # Frontend Config
   NODE_ENV: "production"
-  BETTER_AUTH_URL: "https://studojo.com"
+  BETTER_AUTH_URL: "https://studojo.pro"
   
   # Resume Service Config
   PORT: "8086"

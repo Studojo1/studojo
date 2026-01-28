@@ -369,3 +369,4 @@ authMW := &auth.Middleware{JWKS: jwks}
 9. **Log authentication failures**: Include correlation ID
 10. **Use typed context keys**: Avoid string keys for context values
 
+

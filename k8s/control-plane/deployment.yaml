@@ -28,10 +28,10 @@ spec:
         command: ['sh', '-c', 'until pg_isready -h postgres.studojo.svc.cluster.local -U studojo; do echo "Waiting for PostgreSQL..."; sleep 2; done']
       - name: wait-for-rabbitmq
         image: rabbitmq:latest
-        command: ['sh', '-c', 'until rabbitmq-diagnostics -q ping -h rabbitmq.studojo.svc.cluster.local 2>/dev/null || nc -z rabbitmq.studojo.svc.cluster.local 5672; do echo "Waiting for RabbitMQ..."; sleep 2; done']
+        command: ['sh', '-c', 'until rabbitmq-diagnostics -q ping 2>/dev/null || timeout 1 bash -c "</dev/tcp/rabbitmq.studojo.svc.cluster.local/5672" 2>/dev/null; do echo "Waiting for RabbitMQ..."; sleep 2; done']
       containers:
       - name: control-plane
-        image: acrstudojo.azurecr.io/control-plane:latest
+        image: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io/control-plane:latest
         ports:
         - containerPort: 8080
           name: http

@@ -25,13 +25,13 @@ spec:
       initContainers:
       - name: wait-for-rabbitmq
         image: rabbitmq:latest
-        command: ['sh', '-c', 'until rabbitmq-diagnostics -q ping -h rabbitmq.studojo.svc.cluster.local 2>/dev/null || nc -z rabbitmq.studojo.svc.cluster.local 5672; do echo "Waiting for RabbitMQ..."; sleep 2; done']
+        command: ['sh', '-c', 'until rabbitmq-diagnostics -q ping 2>/dev/null || timeout 1 bash -c "</dev/tcp/rabbitmq.studojo.svc.cluster.local/5672" 2>/dev/null; do echo "Waiting for RabbitMQ..."; sleep 2; done']
       - name: wait-for-resume-service
         image: curlimages/curl:latest
         command: ['sh', '-c', 'until curl -f http://resume-service.studojo.svc.cluster.local:8086/health; do echo "Waiting for Resume Service..."; sleep 2; done']
       containers:
       - name: resume-worker
-        image: acrstudojo.azurecr.io/resume-worker:latest
+        image: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io/resume-worker:latest
         env:
         - name: RABBITMQ_URL
           valueFrom:

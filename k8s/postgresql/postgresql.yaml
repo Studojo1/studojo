@@ -65,7 +65,10 @@ spec:
         - name: POSTGRES_USER
           value: "studojo"
         - name: POSTGRES_PASSWORD
-          value: "studojo"  # For dev only - use secret in production
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: postgres-password
         - name: POSTGRES_DB
           value: "postgres"
         - name: PGDATA

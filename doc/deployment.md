@@ -419,3 +419,4 @@ Include correlation IDs in logs for distributed tracing.
 11. **Scale horizontally**: Use multiple replicas for workers
 12. **Use health checks**: For dependency management
 
+

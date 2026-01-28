@@ -11,20 +11,19 @@ metadata:
     # For NGINX Ingress Controller
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    # For Azure Application Gateway Ingress Controller
-    # appgw.ingress.kubernetes.io/ssl-redirect: "true"
-    # cert-manager.io/cluster-issuer: "letsencrypt-prod"  # If using cert-manager
+    # cert-manager for automatic TLS certificates
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
   ingressClassName: nginx  # Change to "azure-application-gateway" if using AGIC
   tls:
   - hosts:
-    - studojo.com
-    - www.studojo.com
-    - api.studojo.com
+    - studojo.pro
+    - www.studojo.pro
+    - api.studojo.pro
     secretName: studojo-tls-secret  # Create this secret with your TLS cert, or use cert-manager
   rules:
   # Frontend
-  - host: studojo.com
+  - host: studojo.pro
     http:
       paths:
       - path: /
@@ -34,7 +33,7 @@ spec:
             name: frontend
             port:
               number: 3000
-  - host: www.studojo.com
+  - host: www.studojo.pro
     http:
       paths:
       - path: /
@@ -45,7 +44,7 @@ spec:
             port:
               number: 3000
   # Control Plane API
-  - host: api.studojo.com
+  - host: api.studojo.pro
     http:
       paths:
       - path: /

@@ -17,8 +17,10 @@ spec:
         command: ['sh', '-c', 'until pg_isready -h postgres.studojo.svc.cluster.local -U studojo; do echo "Waiting for PostgreSQL..."; sleep 2; done']
       containers:
       - name: db-push
-        image: acrstudojo.azurecr.io/frontend:latest
-        command: ["npm", "run", "db:push"]
+        image: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io/frontend:latest
+        # Use npx drizzle-kit with explicit config path
+        command: ["sh", "-c", "npx drizzle-kit push --config=drizzle.config.ts"]
+        workingDir: /src
         env:
         - name: DATABASE_URL
           valueFrom:

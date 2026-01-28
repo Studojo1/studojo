@@ -28,7 +28,7 @@ spec:
         command: ['sh', '-c', 'until pg_isready -h postgres.studojo.svc.cluster.local -U studojo; do echo "Waiting for PostgreSQL..."; sleep 2; done']
       containers:
       - name: resume-service
-        image: acrstudojo.azurecr.io/resume-service:latest
+        image: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io/resume-service:latest
         ports:
         - containerPort: 8086
           name: http

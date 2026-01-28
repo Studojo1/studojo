@@ -422,3 +422,4 @@ func (c *Checker) Ready(ctx context.Context) error {
 13. **Use JSONB**: For flexible JSON storage
 14. **Set connection limits**: Configure connection pool appropriately
 
+

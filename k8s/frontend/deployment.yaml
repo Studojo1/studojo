@@ -33,7 +33,7 @@ spec:
       # For now, we'll rely on readiness probe to handle startup gracefully
       containers:
       - name: frontend
-        image: acrstudojo.azurecr.io/frontend:latest
+        image: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io/frontend:latest
         ports:
         - containerPort: 3000
           name: http
@@ -84,6 +84,27 @@ spec:
             secretKeyRef:
               name: app-secrets
               key: twilio-verify-service-sid
+        # API Keys for frontend features
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: openai-api-key
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: anthropic-api-key
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: redis-url
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: redis-password
         livenessProbe:
           httpGet:
             path: /
