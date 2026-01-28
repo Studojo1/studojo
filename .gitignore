@@ -1,2 +1,3 @@
 .envrc
 k8s/secrets/secrets.yml
+.github/.env.ci
