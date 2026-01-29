@@ -423,3 +423,5 @@ func (c *Checker) Ready(ctx context.Context) error {
 14. **Set connection limits**: Configure connection pool appropriately
 
 
+
+

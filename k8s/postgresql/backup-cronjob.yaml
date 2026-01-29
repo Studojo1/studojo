@@ -1,0 +1,214 @@
+# PostgreSQL Backup CronJob
+# Runs daily at 2 AM UTC and backs up to Azure Blob Storage
+# Backups are retained for 30 days
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-backup-secret
+  namespace: studojo
+type: Opaque
+stringData:
+  # Azure Storage credentials (reuse existing storage account)
+  AZURE_STORAGE_ACCOUNT_NAME: "studojostorage"
+  AZURE_STORAGE_ACCOUNT_KEY: "" # Will be populated from app-secrets
+  # PostgreSQL connection (from app-secrets)
+  POSTGRES_HOST: "postgres.studojo.svc.cluster.local"
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: "studojo"
+  POSTGRES_DB: "postgres"
+  POSTGRES_PASSWORD: "" # Will be populated from app-secrets
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: studojo
+spec:
+  # Run daily at 2 AM UTC (7:30 AM IST)
+  schedule: "0 2 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: postgres-backup
+            image: python:3.11-slim
+            env:
+            - name: AZURE_STORAGE_ACCOUNT_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-backup-secret
+                  key: AZURE_STORAGE_ACCOUNT_NAME
+            - name: AZURE_STORAGE_ACCOUNT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-backup-secret
+                  key: AZURE_STORAGE_ACCOUNT_KEY
+            - name: POSTGRES_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-backup-secret
+                  key: POSTGRES_HOST
+            - name: POSTGRES_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-backup-secret
+                  key: POSTGRES_PORT
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-backup-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-backup-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-backup-secret
+                  key: POSTGRES_DB
+            command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              
+              echo "Installing dependencies..."
+              apt-get update -qq && apt-get install -y -qq postgresql-client python3-pip > /dev/null
+              
+              echo "Installing Azure Storage Blob library..."
+              pip install -q azure-storage-blob
+              
+              echo "Downloading backup script..."
+              # Create backup script inline (or mount as ConfigMap)
+              cat > /tmp/backup.py << 'PYTHON_SCRIPT'
+              import os
+              import sys
+              import subprocess
+              import gzip
+              from datetime import datetime, timedelta
+              from azure.storage.blob import BlobServiceClient
+              
+              postgres_host = os.getenv("POSTGRES_HOST")
+              postgres_port = os.getenv("POSTGRES_PORT")
+              postgres_user = os.getenv("POSTGRES_USER")
+              postgres_db = os.getenv("POSTGRES_DB")
+              postgres_password = os.getenv("POSTGRES_PASSWORD")
+              
+              storage_account_name = os.getenv("AZURE_STORAGE_ACCOUNT_NAME")
+              storage_account_key = os.getenv("AZURE_STORAGE_ACCOUNT_KEY")
+              container_name = "postgres-backups"
+              
+              if not postgres_password:
+                  print("ERROR: POSTGRES_PASSWORD not set", file=sys.stderr)
+                  sys.exit(1)
+              if not storage_account_name or not storage_account_key:
+                  print("ERROR: Azure Storage credentials not set", file=sys.stderr)
+                  sys.exit(1)
+              
+              timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+              backup_filename = f"postgres-backup-{timestamp}.sql.gz"
+              backup_path = f"/tmp/{backup_filename}"
+              
+              print(f"Starting PostgreSQL backup...")
+              print(f"Host: {postgres_host}:{postgres_port}")
+              print(f"Database: {postgres_db}")
+              
+              print("Dumping database...")
+              env = os.environ.copy()
+              env["PGPASSWORD"] = postgres_password
+              
+              try:
+                  with open(backup_path.replace('.gz', ''), 'wb') as f:
+                      dump_process = subprocess.Popen(
+                          ["pg_dump", "-h", postgres_host, "-p", postgres_port,
+                           "-U", postgres_user, "-d", postgres_db,
+                           "--no-owner", "--no-acl"],
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE,
+                          env=env
+                      )
+                      stdout, stderr = dump_process.communicate()
+                      if dump_process.returncode != 0:
+                          print(f"ERROR: pg_dump failed: {stderr.decode()}", file=sys.stderr)
+                          sys.exit(1)
+                      f.write(stdout)
+                  
+                  print("Compressing backup...")
+                  with open(backup_path.replace('.gz', ''), 'rb') as f_in:
+                      with gzip.open(backup_path, 'wb') as f_out:
+                          f_out.writelines(f_in)
+                  
+                  file_size = os.path.getsize(backup_path)
+                  print(f"Backup created: {backup_filename} ({file_size / 1024 / 1024:.2f} MB)")
+                  
+                  print("Uploading to Azure Blob Storage...")
+                  blob_service_client = BlobServiceClient(
+                      account_url=f"https://{storage_account_name}.blob.core.windows.net",
+                      credential=storage_account_key
+                  )
+                  
+                  container_client = blob_service_client.get_container_client(container_name)
+                  try:
+                      container_client.create_container()
+                      print(f"Created container: {container_name}")
+                  except Exception as e:
+                      if "ContainerAlreadyExists" not in str(e):
+                          raise
+                  
+                  blob_client = blob_service_client.get_blob_client(
+                      container=container_name,
+                      blob=backup_filename
+                  )
+                  
+                  with open(backup_path, "rb") as data:
+                      blob_client.upload_blob(data, overwrite=True)
+                  
+                  print(f"Backup uploaded successfully: {backup_filename}")
+                  
+                  print("Cleaning up old backups (keeping last 30 days)...")
+                  cutoff_date = datetime.now() - timedelta(days=30)
+                  deleted_count = 0
+                  for blob in container_client.list_blobs():
+                      if blob.last_modified.replace(tzinfo=None) < cutoff_date:
+                          blob_client = blob_service_client.get_blob_client(
+                              container=container_name,
+                              blob=blob.name
+                          )
+                          blob_client.delete_blob()
+                          print(f"Deleted old backup: {blob.name}")
+                          deleted_count += 1
+                  
+                  if deleted_count > 0:
+                      print(f"Cleaned up {deleted_count} old backup(s)")
+                  else:
+                      print("No old backups to clean up")
+                  
+                  os.remove(backup_path)
+                  os.remove(backup_path.replace('.gz', ''))
+                  
+                  print("Backup completed successfully!")
+              except Exception as e:
+                  print(f"ERROR: {e}", file=sys.stderr)
+                  import traceback
+                  traceback.print_exc()
+                  sys.exit(1)
+              PYTHON_SCRIPT
+              
+              echo "Running backup script..."
+              python3 /tmp/backup.py
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "100m"
+              limits:
+                memory: "512Mi"
+                cpu: "500m"
+          restartPolicy: OnFailure
+
