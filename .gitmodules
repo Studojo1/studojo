@@ -18,4 +18,4 @@
 	url = https://github.com/studojo/resume-worker.git
 [submodule "admin-panel"]
 	path = admin-panel
-	url = ./admin-panel
+	url = https://github.com/studojo/admin-panel.git
