@@ -69,7 +69,7 @@ services:
 
   frontend-db-push:
     build:
-      context: ./frontend
+      context: ./apps/frontend
       dockerfile: Dockerfile
       target: db-push
     environment:
@@ -81,14 +81,14 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ./apps/frontend
       dockerfile: Dockerfile
       args:
         VITE_CONTROL_PLANE_URL: http://localhost:8080
     ports:
       - "3000:3000"
     env_file:
-      - ./frontend/.env.local
+      - ./apps/frontend/.env.local
     environment:
       DATABASE_URL: postgresql://studojo:studojo@postgres:5432/postgres
       BETTER_AUTH_URL: http://localhost:3000
@@ -103,7 +103,7 @@ services:
 
   admin-panel:
     build:
-      context: ./admin-panel
+      context: ./apps/admin-panel
       dockerfile: Dockerfile
       args:
         VITE_CONTROL_PLANE_URL: http://localhost:8080
@@ -114,6 +114,24 @@ services:
       NODE_ENV: development
     depends_on:
       control-plane:
+        condition: service_started
+
+  maverick:
+    build:
+      context: ./apps/maverick
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3002"
+    env_file:
+      - ./apps/maverick/.env.local
+    environment:
+      DATABASE_URL: postgresql://studojo:studojo@postgres:5432/postgres
+      VITE_AUTH_URL: http://localhost:3000
+      NODE_ENV: development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      frontend:
         condition: service_started
 
   localstack:
@@ -154,6 +172,7 @@ services:
         echo "Creating buckets..."
         aws --endpoint-url=http://localstack:4566 s3 mb s3://assignments || echo "assignments bucket exists"
         aws --endpoint-url=http://localstack:4566 s3 mb s3://resumes || echo "resumes bucket exists"
+        aws --endpoint-url=http://localstack:4566 s3 mb s3://blog-images || echo "blog-images bucket exists"
         echo "Buckets ready!"
     restart: "no"
 

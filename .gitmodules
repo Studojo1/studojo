@@ -1,5 +1,5 @@
 [submodule "frontend"]
-	path = frontend
+	path = apps/frontend
 	url = https://github.com/studojo/frontend.git
 [submodule "services/assignment-gen"]
 	path = services/assignment-gen
@@ -17,5 +17,8 @@
 	path = services/resume-worker
 	url = https://github.com/studojo/resume-worker.git
 [submodule "admin-panel"]
-	path = admin-panel
+	path = apps/admin-panel
 	url = https://github.com/studojo/admin-panel.git
+[submodule "apps/maverick"]
+	path = apps/maverick
+	url = https://github.com/studojo/maverick.git
