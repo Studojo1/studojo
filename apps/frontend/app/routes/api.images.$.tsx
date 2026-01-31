@@ -8,10 +8,18 @@ const localStackEndpoint = process.env.LOCALSTACK_ENDPOINT || "http://localhost:
 
 // GET /api/images/* - Serve images from Azure Blob Storage
 export async function loader({ params }: Route.LoaderArgs) {
-  const path = params["*"];
+  let path = params["*"];
 
   if (!path) {
     return Response.json({ error: "Image path required" }, { status: 400 });
+  }
+
+  // Decode URL-encoded path (e.g., blog-images%2Ffilename.png -> blog-images/filename.png)
+  try {
+    path = decodeURIComponent(path);
+  } catch (e) {
+    // If decoding fails, use original path
+    console.warn("Failed to decode image path:", path);
   }
 
   try {
