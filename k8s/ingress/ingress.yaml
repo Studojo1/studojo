@@ -20,11 +20,13 @@ spec:
     - studojo.pro
     - www.studojo.pro
     - api.studojo.pro
-    - admin.studojo.pro
     - studojo.com
     - www.studojo.com
     - api.studojo.com
     secretName: studojo-tls-secret  # Create this secret with your TLS cert, or use cert-manager
+  - hosts:
+    - admin.studojo.pro
+    secretName: admin-studojo-pro-tls-secret  # Separate certificate for admin subdomain
   rules:
   # Frontend
   - host: studojo.pro
