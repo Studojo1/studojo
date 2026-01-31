@@ -20,6 +20,7 @@ spec:
     - studojo.pro
     - www.studojo.pro
     - api.studojo.pro
+    - admin.studojo.pro
     - studojo.com
     - www.studojo.com
     - api.studojo.com
@@ -87,3 +88,55 @@ spec:
             name: control-plane
             port:
               number: 8080
+  # Admin Panel
+  - host: studojo.com
+    http:
+      paths:
+      - path: /admin
+        pathType: Prefix
+        backend:
+          service:
+            name: admin-panel
+            port:
+              number: 3001
+  - host: www.studojo.com
+    http:
+      paths:
+      - path: /admin
+        pathType: Prefix
+        backend:
+          service:
+            name: admin-panel
+            port:
+              number: 3001
+  - host: studojo.pro
+    http:
+      paths:
+      - path: /admin
+        pathType: Prefix
+        backend:
+          service:
+            name: admin-panel
+            port:
+              number: 3001
+  - host: www.studojo.pro
+    http:
+      paths:
+      - path: /admin
+        pathType: Prefix
+        backend:
+          service:
+            name: admin-panel
+            port:
+              number: 3001
+  # Admin Panel - Dedicated Subdomain
+  - host: admin.studojo.pro
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: admin-panel
+            port:
+              number: 3001

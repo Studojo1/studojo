@@ -1,8 +1,21 @@
 # studojo-v2 stack
-# Ports: postgres 5432 | rabbitmq 5672 | control-plane 8080 | frontend 3000 | adminer 8081
-# Frontend: http://localhost:3000 | Control plane: http://localhost:8080 | Adminer: http://localhost:8081
+# Ports: postgres 5432 | rabbitmq 5672 | redis 6379 | control-plane 8080 | frontend 3000 | admin-panel 3001 | adminer 8081
+# Frontend: http://localhost:3000 | Control plane: http://localhost:8080 | Admin Panel: http://localhost:3001 | Adminer: http://localhost:8081
 
 services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
   postgres:
     image: pgvector/pgvector:pg16
     ports:
@@ -45,7 +58,7 @@ services:
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
       JWKS_URL: http://frontend:3000/api/auth/jwks
       HTTP_PORT: "8080"
-      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001
       RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-rzp_test_yLageEyPxSrRxG}
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-pWKxbij31gPScaRELEhrHdvY}
     depends_on:
@@ -79,11 +92,29 @@ services:
     environment:
       DATABASE_URL: postgresql://studojo:studojo@postgres:5432/postgres
       BETTER_AUTH_URL: http://localhost:3000
+      REDIS_URL: redis://redis:6379
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
       frontend-db-push:
         condition: service_completed_successfully
+
+  admin-panel:
+    build:
+      context: ./admin-panel
+      dockerfile: Dockerfile
+      args:
+        VITE_CONTROL_PLANE_URL: http://localhost:8080
+    ports:
+      - "3001:3001"
+    environment:
+      VITE_CONTROL_PLANE_URL: http://localhost:8080
+      NODE_ENV: development
+    depends_on:
+      control-plane:
+        condition: service_started
 
   localstack:
     image: localstack/localstack:latest
@@ -141,8 +172,8 @@ services:
 
   assignment-gen-worker:
     build:
-      context: ./services/assignment-gen-worker
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: assignment-gen-worker/Dockerfile
     environment:
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
       RESULTS_EXCHANGE: cp.results
@@ -216,4 +247,5 @@ services:
 volumes:
   postgres_data:
   rabbitmq_data:
+  redis_data:
   localstack_data:
