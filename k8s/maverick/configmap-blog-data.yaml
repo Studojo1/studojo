@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: blog-migration-data
+  namespace: studojo
+binaryData:
+  # The JSON file will be base64 encoded
+  studojo.blog_posts.json: ""
+  # Note: ConfigMaps have a 1MB limit, so if the JSON is larger, we'll need to use a different approach
+

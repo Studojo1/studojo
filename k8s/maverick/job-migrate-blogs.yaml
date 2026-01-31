@@ -1,0 +1,60 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: maverick-migrate-blogs
+  namespace: studojo
+  labels:
+    app: maverick
+    job: migrate-blogs
+spec:
+  ttlSecondsAfterFinished: 3600  # Keep job for 1 hour after completion
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: maverick
+        job: migrate-blogs
+    spec:
+      restartPolicy: Never
+      imagePullSecrets:
+        - name: acr-secret
+      containers:
+        - name: migrate-blogs
+          image: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io/maverick:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Starting blog migration..."
+              # Install tsx globally
+              npm install -g tsx typescript
+              # Run migration script from /src/scripts (Docker WORKDIR is /src)
+              cd /src
+              tsx scripts/migrate-blogs.ts
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: database-url
+            - name: AZURE_STORAGE_ACCOUNT_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: azure-storage-account-name
+            - name: AZURE_STORAGE_ACCOUNT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: azure-storage-account-key
+            - name: AZURE_STORAGE_CONTAINER_NAME
+              value: "blog-images"
+          workingDir: /src
+          volumeMounts:
+            - name: blog-data
+              mountPath: /src/data
+              readOnly: true
+      volumes:
+        - name: blog-data
+          persistentVolumeClaim:
+            claimName: blog-migration-data
+

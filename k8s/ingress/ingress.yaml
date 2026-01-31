@@ -27,6 +27,9 @@ spec:
   - hosts:
     - admin.studojo.pro
     secretName: admin-studojo-pro-tls-secret  # Separate certificate for admin subdomain
+  - hosts:
+    - maverick.studojo.pro
+    secretName: maverick-studojo-pro-tls-secret  # Certificate for maverick subdomain
   rules:
   # Frontend
   - host: studojo.pro
@@ -142,3 +145,14 @@ spec:
             name: admin-panel
             port:
               number: 3001
+  # Maverick Blog Editor - Dedicated Subdomain
+  - host: maverick.studojo.pro
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: maverick
+            port:
+              number: 3002

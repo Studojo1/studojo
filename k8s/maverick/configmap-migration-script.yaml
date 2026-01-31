@@ -1,0 +1,116 @@
+apiVersion: v1
+data:
+  migrate-blogs.ts: "#!/usr/bin/env tsx\n/**\n * Migration script to import old blog
+    posts from MongoDB JSON to PostgreSQL\n * \n * Usage:\n *   tsx scripts/migrate-blogs.ts\n
+    * \n * Environment variables required:\n *   DATABASE_URL - PostgreSQL connection
+    string\n *   AZURE_STORAGE_ACCOUNT_NAME\n *   AZURE_STORAGE_ACCOUNT_KEY\n *   AZURE_STORAGE_CONTAINER_NAME
+    (default: blog-images)\n *   USE_LOCALSTACK (optional, set to \"true\" for local
+    development)\n *   LOCALSTACK_ENDPOINT (optional, default: http://localhost:4566)\n
+    */\n\nimport { readFileSync } from \"fs\";\nimport { join } from \"path\";\nimport
+    { Pool } from \"pg\";\nimport { randomUUID } from \"crypto\";\nimport { BlobServiceClient,
+    StorageSharedKeyCredential } from \"@azure/storage-blob\";\nimport { readdir,
+    readFile } from \"fs/promises\";\nimport { existsSync } from \"fs\";\n\ninterface
+    OldBlogPost {\n  _id: { $oid: string };\n  title: string;\n  slug: string;\n  content:
+    string;\n  excerpt: string;\n  featuredImage?: string;\n  author: {\n    userId:
+    string;\n    name: string;\n    email: string;\n  };\n  status: \"draft\" | \"published\";\n
+    \ publishedAt?: { $date: string };\n  seo: {\n    metaTitle?: string;\n    metaDescription?:
+    string;\n    keywords?: string[];\n    ogImage?: string;\n  };\n  categories:
+    string[];\n  tags: string[];\n  readingTime: number;\n  viewCount: number;\n  createdAt:
+    { $date: string };\n  updatedAt: { $date: string };\n}\n\nconst DATABASE_URL =
+    process.env.DATABASE_URL || \"postgresql://studojo:studojo@localhost:5432/postgres\";\nconst
+    accountName = process.env.AZURE_STORAGE_ACCOUNT_NAME || \"\";\nconst accountKey
+    = process.env.AZURE_STORAGE_ACCOUNT_KEY || \"\";\nconst containerName = process.env.AZURE_STORAGE_CONTAINER_NAME
+    || \"blog-images\";\nconst useLocalStack = process.env.USE_LOCALSTACK === \"true\";\nconst
+    localStackEndpoint = process.env.LOCALSTACK_ENDPOINT || \"http://localhost:4566\";\n\nconst
+    pool = new Pool({ connectionString: DATABASE_URL });\n\nlet blobServiceClient:
+    BlobServiceClient;\n\nfunction initBlobClient() {\n  if (useLocalStack) {\n    const
+    connectionString = `DefaultEndpointsProtocol=http;AccountName=${accountName};AccountKey=${accountKey};BlobEndpoint=${localStackEndpoint}/${accountName};`;\n
+    \   blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);\n
+    \ } else {\n    if (!accountName || !accountKey) {\n      throw new Error(\"AZURE_STORAGE_ACCOUNT_NAME
+    and AZURE_STORAGE_ACCOUNT_KEY are required\");\n    }\n    const sharedKeyCredential
+    = new StorageSharedKeyCredential(accountName, accountKey);\n    const blobServiceUrl
+    = `https://${accountName}.blob.core.windows.net`;\n    blobServiceClient = new
+    BlobServiceClient(blobServiceUrl, sharedKeyCredential);\n  }\n}\n\nasync function
+    uploadImage(filePath: string, filename: string): Promise<string> {\n  const containerClient
+    = blobServiceClient.getContainerClient(containerName);\n  await containerClient.createIfNotExists({
+    access: \"private\" });\n\n  // Use original filename to preserve existing structure,
+    or add timestamp if needed\n  // For migration, we'll use the original filename
+    to match existing URLs\n  const sanitizedFilename = filename.replace(/[^a-zA-Z0-9.-]/g,
+    \"_\");\n  // Check if filename already has timestamp prefix, if not add one\n
+    \ const hasTimestamp = /^\\d+-/.test(sanitizedFilename);\n  const blobName = hasTimestamp
+    \n    ? `blog-images/${sanitizedFilename}`\n    : `blog-images/${Date.now()}-${sanitizedFilename}`;\n\n
+    \ const blockBlobClient = containerClient.getBlockBlobClient(blobName);\n  const
+    fileBuffer = await readFile(filePath);\n  \n  await blockBlobClient.uploadData(fileBuffer,
+    {\n    blobHTTPHeaders: {\n      blobContentType: filename.endsWith(\".png\")
+    ? \"image/png\" : filename.endsWith(\".webp\") ? \"image/webp\" : \"image/jpeg\",\n
+    \   },\n  });\n\n  return `/api/images/${blobName}`;\n}\n\nfunction extractFilenameFromUrl(url:
+    string): string | null {\n  // Extract filename from URLs like:\n  // https://studojo.com/api/images/blog-images%2F1761571810990-Screenshot_2025-10-27_185958.png\n
+    \ try {\n    const decoded = decodeURIComponent(url);\n    const match = decoded.match(/blog-images[\\/%2F](.+)$/);\n
+    \   return match ? match[1] : null;\n  } catch {\n    return null;\n  }\n}\n\nasync
+    function migrateImage(oldUrl: string, imagesDir: string): Promise<string | null>
+    {\n  const filename = extractFilenameFromUrl(oldUrl);\n  if (!filename) {\n    console.warn(`Could
+    not extract filename from URL: ${oldUrl}`);\n    return null;\n  }\n\n  const
+    filePath = join(imagesDir, filename);\n  if (!existsSync(filePath)) {\n    console.warn(`Image
+    file not found: ${filePath}`);\n    return null;\n  }\n\n  try {\n    const newUrl
+    = await uploadImage(filePath, filename);\n    console.log(`Uploaded: ${filename}
+    -> ${newUrl}`);\n    return newUrl;\n  } catch (error) {\n    console.error(`Error
+    uploading ${filename}:`, error);\n    return null;\n  }\n}\n\nasync function migratePost(post:
+    OldBlogPost, imagesDir: string): Promise<void> {\n  // Check if post already exists
+    (by slug)\n  const existingResult = await pool.query(\n    'SELECT id FROM blog_posts
+    WHERE slug = $1',\n    [post.slug]\n  );\n\n  if (existingResult.rows.length >
+    0) {\n    console.log(`Skipping duplicate post: ${post.slug}`);\n    return;\n
+    \ }\n\n  // Convert MongoDB ObjectId to UUID (use random UUID for new posts)\n
+    \ const id = randomUUID();\n\n  // Convert dates\n  const publishedAt = post.publishedAt?.$date
+    ? new Date(post.publishedAt.$date) : null;\n  const createdAt = new Date(post.createdAt.$date);\n
+    \ const updatedAt = new Date(post.updatedAt.$date);\n\n  // Migrate featured image\n
+    \ let featuredImage = post.featuredImage;\n  if (featuredImage && featuredImage.includes(\"blog-images\"))
+    {\n    const migratedUrl = await migrateImage(featuredImage, imagesDir);\n    if
+    (migratedUrl) {\n      featuredImage = migratedUrl;\n    }\n  }\n\n  // Migrate
+    OG image\n  let ogImage = post.seo?.ogImage;\n  if (ogImage && ogImage.includes(\"blog-images\"))
+    {\n    const migratedUrl = await migrateImage(ogImage, imagesDir);\n    if (migratedUrl)
+    {\n      ogImage = migratedUrl;\n    }\n  }\n\n  // Insert post\n  await pool.query(\n
+    \   `INSERT INTO blog_posts (\n      id, title, slug, content, excerpt, featured_image,\n
+    \     author_user_id, author_name, author_email,\n      status, published_at,\n
+    \     seo_meta_title, seo_meta_description, seo_keywords, seo_og_image,\n      categories,
+    tags, reading_time, view_count,\n      created_at, updated_at\n    ) VALUES (\n
+    \     $1, $2, $3, $4, $5, $6,\n      $7, $8, $9,\n      $10, $11,\n      $12,
+    $13, $14, $15,\n      $16, $17, $18, $19,\n      $20, $21\n    )`,\n    [\n      id,\n
+    \     post.title,\n      post.slug,\n      post.content,\n      post.excerpt,\n
+    \     featuredImage || null,\n      post.author.userId,\n      post.author.name,\n
+    \     post.author.email,\n      post.status,\n      publishedAt,\n      post.seo?.metaTitle
+    || null,\n      post.seo?.metaDescription || null,\n      post.seo?.keywords ||
+    null,\n      ogImage || null,\n      post.categories || [],\n      post.tags ||
+    [],\n      post.readingTime,\n      post.viewCount || 0,\n      createdAt,\n      updatedAt,\n
+    \   ]\n  );\n\n  console.log(`Migrated: ${post.title} (${post.slug})`);\n}\n\nasync
+    function main() {\n  console.log(\"Starting blog migration...\");\n\n  // Initialize
+    blob storage client\n  try {\n    initBlobClient();\n  } catch (error: any) {\n
+    \   console.error(\"Failed to initialize blob storage client:\", error.message);\n
+    \   process.exit(1);\n  }\n\n  // Read JSON file - try multiple possible locations\n
+    \ let jsonPath = join(process.cwd(), \"data\", \"studojo.blog_posts.json\");\n
+    \ if (!existsSync(jsonPath)) {\n    // Try parent directory\n    jsonPath = join(process.cwd(),
+    \"..\", \"data\", \"studojo.blog_posts.json\");\n    if (!existsSync(jsonPath))
+    {\n      // Try absolute path from project root\n      jsonPath = join(\"/app\",
+    \"data\", \"studojo.blog_posts.json\");\n      if (!existsSync(jsonPath)) {\n
+    \       console.error(`JSON file not found. Tried: ${join(process.cwd(), \"data\",
+    \"studojo.blog_posts.json\")}`);\n        console.error(`Also tried: ${jsonPath}`);\n
+    \       process.exit(1);\n      }\n    }\n  }\n\n  const jsonContent = readFileSync(jsonPath,
+    \"utf-8\");\n  const posts: OldBlogPost[] = JSON.parse(jsonContent);\n\n  console.log(`Found
+    ${posts.length} posts to migrate`);\n\n  // Images directory - try multiple possible
+    locations\n  let imagesDir = join(process.cwd(), \"data\", \"blog-images\");\n
+    \ if (!existsSync(imagesDir)) {\n    imagesDir = join(process.cwd(), \"..\", \"data\",
+    \"blog-images\");\n    if (!existsSync(imagesDir)) {\n      imagesDir = join(\"/app\",
+    \"data\", \"blog-images\");\n      if (!existsSync(imagesDir)) {\n        console.warn(`Images
+    directory not found. Tried: ${join(process.cwd(), \"data\", \"blog-images\")}`);\n
+    \       console.warn(`Also tried: ${imagesDir}`);\n        console.warn(\"Continuing
+    without image migration...\");\n      }\n    }\n  }\n\n  let successCount = 0;\n
+    \ let errorCount = 0;\n  let skippedCount = 0;\n\n  for (const post of posts)
+    {\n    try {\n      await migratePost(post, imagesDir);\n      successCount++;\n
+    \   } catch (error: any) {\n      console.error(`Error migrating post ${post.slug}:`,
+    error.message);\n      errorCount++;\n    }\n  }\n\n  console.log(\"\\nMigration
+    complete!\");\n  console.log(`Success: ${successCount}`);\n  console.log(`Errors:
+    ${errorCount}`);\n  console.log(`Skipped: ${skippedCount}`);\n\n  await pool.end();\n}\n\nmain().catch((error)
+    => {\n  console.error(\"Fatal error:\", error);\n  process.exit(1);\n});\n\n"
+kind: ConfigMap
+metadata:
+  name: blog-migration-script
+  namespace: studojo

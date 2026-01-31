@@ -16,6 +16,10 @@ if command -v docker-compose &> /dev/null && docker-compose ps postgres 2>/dev/n
     echo "Using docker-compose to set user '$USER_EMAIL' as admin..."
     docker-compose exec -T postgres psql -U studojo -d postgres -c "UPDATE \"user\" SET role = 'admin' WHERE email = '$USER_EMAIL';"
     
+    echo ""
+    echo "To set a user as 'ops' role instead, run:"
+    echo "docker-compose exec -T postgres psql -U studojo -d postgres -c \"UPDATE \\\"user\\\" SET role = 'ops' WHERE email = '$USER_EMAIL';\""
+    
     if [ $? -eq 0 ]; then
         echo "✓ User '$USER_EMAIL' has been set as admin"
         echo ""

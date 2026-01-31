@@ -152,6 +152,12 @@ kubectl apply -f control-plane/
 echo -e "${YELLOW}🌐 Deploying Frontend...${NC}"
 kubectl apply -f frontend/
 
+echo -e "${YELLOW}✍️  Deploying Maverick...${NC}"
+kubectl apply -f maverick/
+
+echo -e "${YELLOW}📋 Deploying Admin Panel...${NC}"
+kubectl apply -f admin-panel/
+
 echo -e "${YELLOW}📄 Deploying Resume Service...${NC}"
 kubectl apply -f resume-service/
 
