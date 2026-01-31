@@ -75,6 +75,7 @@ export default function Blog() {
 
   return (
     <div className="min-h-screen bg-white">
+      <Header />
       <div className="mx-auto max-w-[var(--section-max-width)] px-[var(--section-padding-x)] py-[var(--section-padding-y)]">
         <div className="mb-12 text-center md:mb-16">
           <h1 className="font-['Clash_Display'] text-4xl font-medium leading-tight text-neutral-900 md:text-5xl lg:text-6xl">

@@ -58,12 +58,11 @@ interface BlogPost {
   seo_og_image?: string;
 }
 
-export async function loader({ params, request }: Route.LoaderArgs) {
-  const { slug } = params;
+import db from "~/lib/db";
+import { sql } from "drizzle-orm";
 
-  // Use the database directly instead of fetch for SSR
-  const db = (await import("~/lib/db")).default;
-  const { sql } = await import("drizzle-orm");
+export async function loader({ params }: Route.LoaderArgs) {
+  const { slug } = params;
 
   const result = await db.execute(
     sql`SELECT * FROM blog_posts WHERE slug = ${slug} AND status = 'published' LIMIT 1`
