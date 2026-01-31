@@ -16,3 +16,6 @@
 [submodule "services/resume-worker"]
 	path = services/resume-worker
 	url = https://github.com/studojo/resume-worker.git
+[submodule "admin-panel"]
+	path = admin-panel
+	url = ./admin-panel
