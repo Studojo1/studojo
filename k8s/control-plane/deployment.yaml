@@ -61,16 +61,31 @@ spec:
             configMapKeyRef:
               name: app-config
               key: CORS_ORIGINS
-        - name: RAZORPAY_KEY_ID
+        - name: RAZORPAY_MODE
           valueFrom:
             secretKeyRef:
               name: app-secrets
-              key: razorpay-key-id
-        - name: RAZORPAY_KEY_SECRET
+              key: razorpay-mode
+        - name: RAZORPAY_KEY_PROD_ID
           valueFrom:
             secretKeyRef:
               name: app-secrets
-              key: razorpay-key-secret
+              key: razorpay-key-prod-id
+        - name: RAZORPAY_KEY_PROD_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: razorpay-key-prod-secret
+        - name: RAZORPAY_KEY_TEST_ID
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: razorpay-key-test-id
+        - name: RAZORPAY_KEY_TEST_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: razorpay-key-test-secret
         livenessProbe:
           httpGet:
             path: /health

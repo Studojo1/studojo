@@ -20,6 +20,9 @@ spec:
     - studojo.pro
     - www.studojo.pro
     - api.studojo.pro
+    - studojo.com
+    - www.studojo.com
+    - api.studojo.com
     secretName: studojo-tls-secret  # Create this secret with your TLS cert, or use cert-manager
   rules:
   # Frontend
@@ -43,6 +46,36 @@ spec:
             name: frontend
             port:
               number: 3000
+  - host: studojo.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 3000
+  - host: www.studojo.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 3000
+  - host: api.studojo.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: control-plane
+            port:
+              number: 8080
   # Control Plane API
   - host: api.studojo.pro
     http:

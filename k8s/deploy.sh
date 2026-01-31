@@ -34,7 +34,7 @@ echo -e "${YELLOW}🔐 Applying secrets...${NC}"
 if [ -f "secrets/secrets.yml" ]; then
     kubectl apply -f secrets/secrets.yml
 else
-    kubectl apply -f secrets/secrets.yaml
+kubectl apply -f secrets/secrets.yaml
 fi
 
 echo -e "${YELLOW}📋 Applying configmaps...${NC}"
@@ -72,8 +72,8 @@ RABBITMQ_EXISTS=$(kubectl get statefulset rabbitmq -n studojo 2>/dev/null && ech
 # Deploy infrastructure services if they don't exist
 if [[ "$POSTGRES_EXISTS" == "no" ]] || [[ "$RABBITMQ_EXISTS" == "no" ]]; then
     if [[ "$POSTGRES_EXISTS" == "no" ]] && [[ "$RABBITMQ_EXISTS" == "no" ]]; then
-        read -p "Deploy in-cluster PostgreSQL and RabbitMQ? (y/N) " -n 1 -r
-        echo
+read -p "Deploy in-cluster PostgreSQL and RabbitMQ? (y/N) " -n 1 -r
+echo
         DEPLOY_INFRA=$REPLY
     else
         DEPLOY_INFRA="y"
@@ -81,20 +81,20 @@ if [[ "$POSTGRES_EXISTS" == "no" ]] || [[ "$RABBITMQ_EXISTS" == "no" ]]; then
     
     if [[ $DEPLOY_INFRA =~ ^[Yy]$ ]]; then
         if [[ "$POSTGRES_EXISTS" == "no" ]]; then
-            echo -e "${YELLOW}🗄️  Deploying PostgreSQL...${NC}"
-            kubectl apply -f postgresql/
-            echo -e "${YELLOW}⏳ Waiting for PostgreSQL to be ready...${NC}"
-            kubectl wait --for=condition=ready pod -l app=postgres -n studojo --timeout=300s || true
+    echo -e "${YELLOW}🗄️  Deploying PostgreSQL...${NC}"
+    kubectl apply -f postgresql/
+    echo -e "${YELLOW}⏳ Waiting for PostgreSQL to be ready...${NC}"
+    kubectl wait --for=condition=ready pod -l app=postgres -n studojo --timeout=300s || true
         else
             echo -e "${GREEN}✓ PostgreSQL already exists${NC}"
         fi
-        
+    
         if [[ "$RABBITMQ_EXISTS" == "no" ]]; then
-            echo -e "${YELLOW}🐰 Deploying RabbitMQ...${NC}"
-            kubectl apply -f rabbitmq/configmap.yaml
-            kubectl apply -f rabbitmq/
-            echo -e "${YELLOW}⏳ Waiting for RabbitMQ to be ready...${NC}"
-            kubectl wait --for=condition=ready pod -l app=rabbitmq -n studojo --timeout=300s || true
+    echo -e "${YELLOW}🐰 Deploying RabbitMQ...${NC}"
+    kubectl apply -f rabbitmq/configmap.yaml
+    kubectl apply -f rabbitmq/
+    echo -e "${YELLOW}⏳ Waiting for RabbitMQ to be ready...${NC}"
+    kubectl wait --for=condition=ready pod -l app=rabbitmq -n studojo --timeout=300s || true
         else
             echo -e "${GREEN}✓ RabbitMQ already exists${NC}"
         fi
@@ -109,9 +109,9 @@ if [[ "$POSTGRES_EXISTS" == "no" ]] || [[ "$RABBITMQ_EXISTS" == "no" ]]; then
         else
             echo -e "${GREEN}✓ Redis already exists${NC}"
         fi
-    else
-        echo -e "${GREEN}✓ Skipping in-cluster infrastructure (assuming Azure managed services)${NC}"
-    fi
+else
+    echo -e "${GREEN}✓ Skipping in-cluster infrastructure (assuming Azure managed services)${NC}"
+fi
 else
     echo -e "${GREEN}✓ Infrastructure services already exist${NC}"
 fi
@@ -127,19 +127,19 @@ if [[ "$DB_JOB_EXISTS" == "no" ]] || [[ "$DB_JOB_COMPLETE" != "True" ]]; then
         sleep 2
     fi
     
-    echo -e "${YELLOW}🔄 Running database migration job...${NC}"
-    kubectl apply -f frontend/job-db-push.yaml
-    echo -e "${YELLOW}⏳ Waiting for DB push job to complete...${NC}"
-    if kubectl wait --for=condition=complete job/frontend-db-push -n studojo --timeout=300s; then
-        echo -e "${GREEN}✓ Database migration completed${NC}"
-    else
-        echo -e "${RED}❌ Database migration failed. Check logs:${NC}"
-        echo "kubectl logs job/frontend-db-push -n studojo"
-        read -p "Continue anyway? (y/N) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            exit 1
-        fi
+echo -e "${YELLOW}🔄 Running database migration job...${NC}"
+kubectl apply -f frontend/job-db-push.yaml
+echo -e "${YELLOW}⏳ Waiting for DB push job to complete...${NC}"
+if kubectl wait --for=condition=complete job/frontend-db-push -n studojo --timeout=300s; then
+    echo -e "${GREEN}✓ Database migration completed${NC}"
+else
+    echo -e "${RED}❌ Database migration failed. Check logs:${NC}"
+    echo "kubectl logs job/frontend-db-push -n studojo"
+    read -p "Continue anyway? (y/N) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
     fi
 else
     echo -e "${GREEN}✓ Database migration already completed${NC}"
