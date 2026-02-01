@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: humanizer-worker
+  namespace: studojo
+  labels:
+    app: humanizer-worker
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: humanizer-worker
+  template:
+    metadata:
+      labels:
+        app: humanizer-worker
+    spec:
+      imagePullSecrets:
+      - name: acr-secret
+      initContainers:
+      - name: wait-for-rabbitmq
+        image: rabbitmq:latest
+        command: ['sh', '-c', 'until rabbitmq-diagnostics -q ping 2>/dev/null || timeout 1 bash -c "</dev/tcp/rabbitmq.studojo.svc.cluster.local/5672" 2>/dev/null; do echo "Waiting for RabbitMQ..."; sleep 2; done']
+      containers:
+      - name: humanizer-worker
+        image: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io/humanizer-worker:latest
+        env:
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: rabbitmq-url
+        - name: RESULTS_EXCHANGE
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: RESULTS_EXCHANGE
+        - name: HUMANIZER_SERVICE_URL
+          value: "http://humanizer-svc:8000"
+        - name: USE_LOCALSTACK
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: USE_LOCALSTACK
+        - name: AZURE_STORAGE_ACCOUNT_NAME
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: azure-storage-account-name
+        - name: AZURE_STORAGE_ACCOUNT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: azure-storage-account-key
+        - name: AZURE_STORAGE_CONTAINER_NAME
+          value: "humanizer"
+        - name: LOCALSTACK_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: LOCALSTACK_ENDPOINT
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+

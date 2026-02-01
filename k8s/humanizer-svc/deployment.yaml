@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: humanizer-svc
+  namespace: studojo
+  labels:
+    app: humanizer-svc
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: humanizer-svc
+  template:
+    metadata:
+      labels:
+        app: humanizer-svc
+    spec:
+      imagePullSecrets:
+      - name: acr-secret
+      containers:
+      - name: humanizer-svc
+        image: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io/humanizer-svc:latest
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: REPHRASY_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: rephrasy-api-key
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: openai-api-key
+        - name: HUMANIZER_MAX_PARAGRAPHS
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: HUMANIZER_MAX_PARAGRAPHS
+        - name: HUMANIZER_TIMEOUT_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: HUMANIZER_TIMEOUT_SECONDS
+        - name: PORT
+          value: "8000"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: humanizer-svc
+  namespace: studojo
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: humanizer-svc
+

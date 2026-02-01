@@ -29,3 +29,8 @@ data:
   USE_LOCALSTACK_RESUME: "false"
   AZURE_STORAGE_CONTAINER_NAME_RESUME: "resumes"
   RESUME_SERVICE_URL: "http://resume-service:8086"
+  
+  # Humanizer Config
+  HUMANIZER_MAX_PARAGRAPHS: "1000"
+  HUMANIZER_TIMEOUT_SECONDS: "300"
+  LOCALSTACK_ENDPOINT: "http://localstack:4566"

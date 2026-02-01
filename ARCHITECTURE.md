@@ -2,7 +2,133 @@
 
 ## System Overview
 
-Studojo v2 is a microservices-based platform for student productivity tools, with a focus on assignment generation, resume building, and study aids.
+Studojo v2 is a microservices-based platform for student productivity tools, with a focus on assignment generation, resume building, and study aids. The system is built using modern technologies with clear separation of concerns, asynchronous job processing, and scalable architecture patterns.
+
+### Key Features
+
+- **AI-Powered Assignment Generation**: Interactive assignment creation with outline generation and editing
+- **Resume Building & Optimization**: Complete resume package generation (Resume, Cover Letter, CV) with job-specific optimization
+- **Blog Management**: Rich text blog editor (Maverick) for content management
+- **Admin Panel**: User management, dissertation submissions, and career applications
+- **Payment Integration**: Razorpay integration for paid services
+- **Multi-Authentication**: JWT, phone OTP, Google OAuth, and Passkeys support
+
+## Repository Structure
+
+```
+studojo/
+├── apps/                          # Frontend applications
+│   ├── frontend/                  # Main React Router application (Port: 3000)
+│   │   ├── app/
+│   │   │   ├── components/       # React components (auth, blog, careers, dojos, resumes)
+│   │   │   ├── lib/              # Utilities (auth, control-plane, payments, db)
+│   │   │   └── routes/           # Route handlers (40+ routes)
+│   │   ├── drizzle/              # Database migrations
+│   │   ├── public/               # Static assets
+│   │   └── Dockerfile
+│   ├── admin-panel/              # Admin interface (Port: 3001)
+│   │   ├── app/
+│   │   │   ├── components/       # Admin components
+│   │   │   ├── lib/              # API clients and auth
+│   │   │   └── routes/           # Admin routes (dashboard, users, dissertations, careers)
+│   │   └── Dockerfile
+│   └── maverick/                 # Blog editor (Port: 3002)
+│       ├── app/
+│       │   ├── components/       # Blog and internship components
+│       │   ├── lib/              # Blob storage, auth, DB utilities
+│       │   └── routes/           # Blog and internship routes
+│       └── Dockerfile
+│
+├── services/                      # Backend microservices
+│   ├── control-plane/            # Central orchestration service (Port: 8080)
+│   │   ├── cmd/server/           # Main entry point
+│   │   ├── internal/
+│   │   │   ├── api/              # HTTP handlers and middleware
+│   │   │   ├── auth/             # JWT validation and JWKS
+│   │   │   ├── messaging/       # RabbitMQ publisher/consumer
+│   │   │   ├── store/            # Database store and migrations
+│   │   │   └── workflow/         # Job lifecycle management
+│   │   └── Dockerfile
+│   ├── assignment-gen/           # Python assignment generator
+│   │   ├── src/
+│   │   │   ├── chains/           # LangChain/LangGraph workflows
+│   │   │   ├── models/           # Data models
+│   │   │   ├── tools/            # LLM tools and utilities
+│   │   │   └── utils/            # Helper functions
+│   │   ├── worker_generate.py    # Main generation worker
+│   │   ├── worker_generate_outline.py
+│   │   ├── worker_edit_outline.py
+│   │   └── Dockerfile
+│   ├── assignment-gen-worker/   # Go worker for assignment jobs
+│   │   ├── cmd/worker/           # Worker entry point
+│   │   ├── internal/
+│   │   │   ├── blob/             # Azure Blob Storage client
+│   │   │   ├── generator/        # Python generator invoker
+│   │   │   └── messaging/       # RabbitMQ consumer
+│   │   └── Dockerfile
+│   ├── resume-svc/               # Resume PDF generation service (Port: 8086)
+│   │   ├── cmd/server/           # Service entry point
+│   │   ├── internal/
+│   │   │   ├── domain/           # Domain models
+│   │   │   ├── handler/          # HTTP handlers
+│   │   │   └── tex/              # LaTeX generation
+│   │   ├── templates/            # LaTeX templates
+│   │   └── Dockerfile
+│   └── resume-worker/            # Go worker for resume jobs
+│       ├── cmd/worker/           # Worker entry point
+│       ├── internal/
+│       │   ├── blob/             # Azure Blob Storage client
+│       │   └── resume/           # Resume service client
+│       └── Dockerfile
+│
+├── k8s/                          # Kubernetes deployment configs
+│   ├── admin-panel/              # Admin panel deployment
+│   ├── assignment-gen-worker/   # Assignment worker deployment
+│   ├── cert-manager/             # SSL certificate management
+│   ├── configmaps/               # Configuration maps
+│   ├── control-plane/            # Control plane deployment
+│   ├── frontend/                 # Frontend deployment and DB migration job
+│   ├── ingress/                  # Ingress configuration
+│   ├── maverick/                 # Maverick deployment and migration jobs
+│   ├── postgresql/               # PostgreSQL deployment and backup
+│   ├── rabbitmq/                 # RabbitMQ deployment
+│   ├── redis/                    # Redis deployment
+│   ├── resume-service/           # Resume service deployment
+│   ├── resume-worker/            # Resume worker deployment
+│   ├── secrets/                  # Secret templates
+│   └── deploy.sh                 # Deployment script
+│
+├── docker/                       # Docker setup scripts
+│   ├── localstack-init.sh        # LocalStack initialization
+│   └── postgres/                 # PostgreSQL init scripts
+│
+├── scripts/                      # Utility scripts
+│   ├── build-and-deploy-maverick.sh
+│   ├── migrate-blogs.ts          # Blog migration script
+│   ├── set-admin-user.sh         # Admin user setup
+│   └── upload-blog-images.ts     # Image upload script
+│
+├── data/                         # Data files
+│   ├── blog-images/              # Blog post images
+│   └── studojo.blog_posts.json   # Blog posts data
+│
+├── doc/                          # Architecture documentation
+│   ├── architecture-overview.md
+│   ├── api-conventions.md
+│   ├── authentication.md
+│   ├── code-organization.md
+│   ├── database-patterns.md
+│   ├── deployment.md
+│   ├── messaging-patterns.md
+│   ├── service-development.md
+│   └── worker-patterns.md
+│
+├── docker-compose.yml            # Local development orchestration
+├── ARCHITECTURE.md               # This file
+├── DEPLOYMENT.md                 # Deployment guide
+├── README.rst                    # Project overview
+└── ADMIN_SETUP.md                # Admin setup guide
+```
 
 ## Architecture Diagram
 
@@ -97,13 +223,16 @@ graph TB
 
 ```
 
-## Component Details
+## System Architecture
 
-### Frontend Service
+### Frontend Applications
+
+#### Main Frontend (`apps/frontend`)
 - **Technology**: React Router v7, Vite, TypeScript, TailwindCSS
+- **Port**: 3000
 - **Authentication**: Better Auth with JWT, phone OTP, Google OAuth, Passkeys
 - **Database**: PostgreSQL (auth schema: user, session, account, etc.)
-- **Responsibilities**:
+- **Key Features**:
   - User interface and interactions
   - Authentication and session management
   - User onboarding flow
@@ -111,6 +240,52 @@ graph TB
   - Interactive assignment generation flow
   - Resume building and management (Careers Dojo)
   - Payment integration (Razorpay checkout)
+  - Blog viewing and navigation
+  - Internship applications
+  - Dissertation submissions
+- **Routes**: 40+ routes including:
+  - Authentication (`/auth`, `/auth/2fa`)
+  - Dojos (`/dojos/assignment`, `/dojos/careers`, `/dojos/internships`)
+  - Blog (`/blog`, `/blog/:slug`)
+  - Careers (`/careers`, `/my-applications`)
+  - Resumes (`/resumes`)
+  - API routes for backend integration
+
+#### Admin Panel (`apps/admin-panel`)
+- **Technology**: React Router v7, Vite, TypeScript
+- **Port**: 3001
+- **Access**: Requires `admin` role
+- **Features**:
+  - User management and search
+  - Dissertation submission review
+  - Career application management
+  - Dashboard with statistics
+- **Routes**:
+  - `/` - Dashboard
+  - `/users` - User management
+  - `/dissertations` - Dissertation submissions
+  - `/careers` - Career applications
+  - `/assignments` - Assignment management
+
+#### Maverick Blog Editor (`apps/maverick`)
+- **Technology**: React Router v7, TipTap (rich text editor)
+- **Port**: 3002
+- **Access**: Requires `ops` or `admin` role
+- **Features**:
+  - Rich text blog editing with TipTap
+  - Image upload to Azure Blob Storage
+  - SEO metadata management
+  - Category and tag management
+  - Draft/published status
+  - Reading time calculation
+  - Slug generation with uniqueness checks
+  - Internship management
+- **Routes**:
+  - `/` - Blog dashboard
+  - `/blog` - Blog post list
+  - `/blog/new` - Create new post
+  - `/blog/:id/edit` - Edit post
+  - `/internships` - Internship management
 
 ### Control Plane
 - **Technology**: Go 1.23
@@ -259,15 +434,37 @@ graph TB
 10. Frontend polls and displays result
 
 ### Storage
-- **PostgreSQL**: 
-  - `cp.*` schema: jobs, job_state_transitions, idempotency_keys, payments
-  - `public.*` schema: user, session, account (auth), resumes (user-saved resumes)
-- **Azure Blob Storage** (LocalStack for local):
-  - Container: `assignments`
-    - Path: `{job_id}/assignment.docx`
-  - Container: `resumes`
-    - Path: `{job_id}/resume-package.zip`
-  - URLs: SAS tokens (Azure) or public URLs (LocalStack)
+
+#### PostgreSQL Database
+- **Port**: 5432
+- **Extensions**: pgvector (for vector operations)
+- **Schemas**:
+  - **`cp.*` schema** (Control Plane):
+    - `jobs` - Job records with status, type, user_id, result
+    - `job_state_transitions` - Audit log of job state changes
+    - `idempotency_keys` - Idempotency key tracking
+    - `payments` - Payment records and verification
+  - **`public.*` schema** (Shared):
+    - `user` - User accounts
+    - `session` - User sessions
+    - `account` - OAuth accounts
+    - `resumes` - User-saved resume data
+    - `blog_posts` - Blog post content and metadata
+    - `careers` - Career applications
+    - `dissertations` - Dissertation submissions
+    - `internships` - Internship listings
+
+#### Azure Blob Storage (LocalStack for local)
+- **Containers**:
+  - `assignments` - Assignment documents
+    - Path pattern: `{job_id}/assignment.docx`
+  - `resumes` - Resume packages
+    - Path pattern: `{job_id}/resume-package.zip`
+  - `blog-images` - Blog post images
+    - Path pattern: `{post_id}/{filename}`
+- **URLs**: 
+  - Production: SAS tokens (Azure Blob Storage)
+  - Local: Public URLs (LocalStack S3-compatible API)
 
 ## Environment Configuration
 
@@ -311,29 +508,178 @@ graph TB
 ### Resume Service
 - `PORT`: HTTP port (default: `8086`)
 
+## Infrastructure Components
+
+### Message Broker: RabbitMQ
+- **Port**: 5672
+- **Exchanges**:
+  - `cp.jobs` (topic) - Job commands from Control Plane to workers
+    - Routing keys: `job.assignment-gen`, `job.outline-gen`, `job.outline-edit`, `job.resume-gen`, `job.resume-optimize`
+  - `cp.results` (topic) - Result events from workers to Control Plane
+    - Routing keys: `result.assignment-gen`, `result.outline-gen`, `result.resume-gen`, etc.
+- **Queues**:
+  - `assignment-gen.jobs` - Consumed by assignment-gen-worker
+  - `resume.jobs` - Consumed by resume-worker
+  - `control-plane.results` - Consumed by Control Plane (binds to `result.#`)
+
+### Cache: Redis
+- **Port**: 6379
+- **Usage**:
+  - Session management (Better Auth)
+  - Rate limiting
+  - Caching
+
+### LocalStack (Local Development)
+- **Port**: 4566
+- **Services**: S3-compatible API for Azure Blob Storage emulation
+- **Buckets**: `assignments`, `resumes`, `blog-images`
+
 ## Deployment
+
+### Local Development (Docker Compose)
 
 All services are containerized and orchestrated via Docker Compose:
 
-- **postgres**: pgvector/pg16
-- **rabbitmq**: Latest
-- **localstack**: Azure services emulation (S3)
-- **frontend**: Node/Bun-based React app
-- **frontend-db-push**: Database migration runner (one-time)
-- **control-plane**: Go service
+**Infrastructure Services**:
+- **postgres**: pgvector/pg16 (Port: 5432)
+- **rabbitmq**: Latest (Port: 5672)
+- **redis**: 7-alpine (Port: 6379)
+- **localstack**: Azure services emulation (Port: 4566)
+- **adminer**: Database admin UI (Port: 8081)
+
+**Application Services**:
+- **frontend**: Node/Bun-based React app (Port: 3000)
+- **frontend-db-push**: Database migration runner (one-time job)
+- **admin-panel**: React Router app (Port: 3001)
+- **maverick**: Blog editor (Port: 3002)
+- **control-plane**: Go service (Port: 8080)
 - **assignment-gen**: Python service
 - **assignment-gen-worker**: Go worker
-- **resume-service**: Go service (resume PDF/package generation)
-- **resume-worker**: Go worker (resume job processing)
-- **adminer**: Database admin UI (Port: 8081)
+- **resume-service**: Go service (Port: 8086)
+- **resume-worker**: Go worker
+
+### Production (Kubernetes)
+
+Services are deployed to Kubernetes with:
+- **Deployments**: All application services
+- **Services**: ClusterIP and LoadBalancer services
+- **Ingress**: Nginx ingress with cert-manager for SSL
+- **ConfigMaps**: Configuration management
+- **Secrets**: Sensitive data (API keys, database credentials)
+- **Jobs**: Database migrations, blog data migration
+- **CronJobs**: PostgreSQL backups
+- **PVCs**: Persistent volumes for blog data
+- **Namespace**: `studojo` (isolated namespace)
+
+See `k8s/deploy.sh` for deployment script and `k8s/README.md` for detailed deployment guide.
 
 ## Security
 
-- JWT-based authentication between frontend and control plane
-- JWKS endpoint for token validation
-- User-scoped job access (authorization)
-- Idempotency keys prevent duplicate submissions
-- CORS protection on control plane API
-- Payment signature verification (Razorpay HMAC SHA256)
-- Payment-to-job linking prevents payment reuse
-- Payment verification required for paid jobs (assignment-gen)
+### Authentication & Authorization
+- **JWT-based authentication** between frontend and control plane
+- **JWKS endpoint** for token validation (no shared secrets)
+- **User-scoped job access** - Jobs can only be accessed by their creator
+- **Role-based access control**:
+  - `admin` - Full access to admin panel
+  - `ops` - Access to Maverick blog editor
+  - Regular users - Standard frontend access
+
+### Data Protection
+- **Idempotency keys** prevent duplicate job submissions
+- **CORS protection** on control plane API (whitelist-based)
+- **Payment signature verification** (Razorpay HMAC SHA256)
+- **Payment-to-job linking** prevents payment reuse
+- **Payment verification required** for paid jobs (assignment-gen)
+
+### Security Headers
+- All services implement security headers middleware
+- HTTPS enforced in production
+- SSL certificates managed via cert-manager
+
+## Scalability & Performance
+
+### Horizontal Scaling
+- **Workers**: Horizontally scalable (multiple instances consume from same queue)
+- **Control Plane**: Stateless, can be scaled behind load balancer
+- **Frontend**: Stateless, can be scaled horizontally
+- **Database**: Connection pooling enabled
+
+### Message Distribution
+- RabbitMQ handles automatic message distribution across worker instances
+- Round-robin distribution for fair workload sharing
+- Persistent messages survive broker restarts
+
+### Caching
+- Redis for session management and rate limiting
+- Frontend asset caching via CDN (production)
+
+## Monitoring & Observability
+
+### Health Checks
+- All services expose `/health` (liveness) and `/ready` (readiness) endpoints
+- Kubernetes health probes configured for all deployments
+
+### Logging
+- Structured logging with correlation IDs
+- Job state transitions tracked for audit trail
+- Error messages stored with jobs for debugging
+
+### Metrics
+- Job status tracking (CREATED, QUEUED, RUNNING, COMPLETED, FAILED)
+- Payment transaction logging
+- State transition audit log
+
+## External Integrations
+
+### OpenAI
+- Used by Python assignment generator for content generation
+- API key configured via environment variables
+
+### Anthropic
+- Alternative LLM provider for assignment generation
+- API key configured via environment variables
+
+### Rephrasy
+- Content humanization service
+- API key configured via environment variables
+
+### Razorpay
+- Payment gateway for assignment generation
+- Order creation and signature verification
+- Webhook support for payment status updates
+
+### Twilio
+- SMS OTP for phone authentication
+- Configured in frontend environment
+
+### Google OAuth
+- Social authentication provider
+- Client ID and secret configured in frontend
+
+## Development Workflow
+
+### Local Setup
+1. Clone repository with submodules
+2. Configure environment variables (`.env.local` files)
+3. Run `docker-compose up` to start all services
+4. Access services at configured ports
+
+### Database Migrations
+- Frontend migrations: Run via `frontend-db-push` Docker job
+- Control Plane migrations: Embedded in service, run on startup
+- Maverick migrations: Included in frontend migrations
+
+### Testing
+- Unit tests in individual services
+- Integration tests via Docker Compose
+- Manual testing via local development environment
+
+## Additional Resources
+
+- **Architecture Documentation**: See `doc/` directory for detailed patterns
+- **API Conventions**: `doc/api-conventions.md`
+- **Messaging Patterns**: `doc/messaging-patterns.md`
+- **Database Patterns**: `doc/database-patterns.md`
+- **Worker Patterns**: `doc/worker-patterns.md`
+- **Deployment Guide**: `DEPLOYMENT.md`
+- **Admin Setup**: `ADMIN_SETUP.md`

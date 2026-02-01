@@ -173,6 +173,7 @@ services:
         echo "Creating buckets..."
         aws --endpoint-url=http://localstack:4566 s3 mb s3://assignments || echo "assignments bucket exists"
         aws --endpoint-url=http://localstack:4566 s3 mb s3://resumes || echo "resumes bucket exists"
+        aws --endpoint-url=http://localstack:4566 s3 mb s3://humanizer || echo "humanizer bucket exists"
         aws --endpoint-url=http://localstack:4566 s3 mb s3://blog-images || echo "blog-images bucket exists"
         echo "Buckets ready!"
     restart: "no"
@@ -248,6 +249,45 @@ services:
       rabbitmq:
         condition: service_healthy
       resume-service:
+        condition: service_started
+      localstack:
+        condition: service_healthy
+      localstack-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  humanizer-svc:
+    build:
+      context: ./services/humanizer-svc
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8000"
+    environment:
+      REPHRASY_API_KEY: ${REPHRASY_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      HUMANIZER_MAX_PARAGRAPHS: "1000"
+      HUMANIZER_TIMEOUT_SECONDS: "300"
+      PORT: "8000"
+    depends_on:
+      - postgres
+
+  humanizer-worker:
+    build:
+      context: ./services
+      dockerfile: humanizer-worker/Dockerfile
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      RESULTS_EXCHANGE: cp.results
+      HUMANIZER_SERVICE_URL: http://humanizer-svc:8000
+      USE_LOCALSTACK: "true"
+      LOCALSTACK_ENDPOINT: http://localstack:4566
+      AZURE_STORAGE_ACCOUNT_NAME: test
+      AZURE_STORAGE_ACCOUNT_KEY: test
+      AZURE_STORAGE_CONTAINER_NAME: humanizer
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      humanizer-svc:
         condition: service_started
       localstack:
         condition: service_healthy
