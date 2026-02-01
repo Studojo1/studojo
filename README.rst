@@ -1,74 +1,33 @@
-Studojo v2
-==========
+Humanizer Worker
+================
 
-Microservices-based platform for student productivity tools, with a focus on assignment generation, resume building, and study aids.
+Go worker service that consumes humanizer jobs from RabbitMQ, calls the humanizer-svc, and uploads results to blob storage.
 
 Overview
 --------
 
-Studojo v2 is a microservices architecture consisting of multiple services working together to provide a comprehensive platform for students. This repository serves as the main entry point and contains all services as git submodules.
+This worker:
+- Consumes jobs from RabbitMQ queue `humanizer.jobs`
+- Calls humanizer-svc HTTP API
+- Uploads humanized documents to Azure Blob Storage
+- Publishes result events to RabbitMQ
 
-Repository Structure
----------------------
+Technology
+----------
 
-This repository uses git submodules to organize the codebase:
+- Go 1.23+
+- RabbitMQ
+- Azure Blob Storage
 
-- ``frontend/`` - React Router frontend application
-- ``services/assignment-gen/`` - Python service for AI-powered assignment generation
-- ``services/assignment-gen-worker/`` - Go worker service for processing assignment generation jobs
-- ``services/control-plane/`` - Go orchestration service for auth, job lifecycle, and async coordination
-- ``services/resume-svc/`` - Go service for generating resume PDFs and packages
-- ``services/resume-worker/`` - Go worker service for processing resume jobs
+Environment Variables
+--------------------
 
-Cloning the Repository
------------------------
+- ``RABBITMQ_URL``: RabbitMQ connection URL
+- ``RESULTS_EXCHANGE``: Results exchange name (default: cp.results)
+- ``HUMANIZER_SERVICE_URL``: Humanizer service URL (default: http://humanizer-svc:8000)
+- ``AZURE_STORAGE_ACCOUNT_NAME``: Azure storage account name
+- ``AZURE_STORAGE_ACCOUNT_KEY``: Azure storage account key
+- ``AZURE_STORAGE_CONTAINER_NAME``: Container name (default: humanizer)
+- ``USE_LOCALSTACK``: Use LocalStack for local development (true/false)
+- ``LOCALSTACK_ENDPOINT``: LocalStack endpoint URL
 
-To clone this repository with all submodules:
-
-.. code-block:: bash
-
-   git clone --recurse-submodules https://github.com/studojo/studojo.git
-
-If you've already cloned the repository without submodules:
-
-.. code-block:: bash
-
-   git submodule update --init --recursive
-
-Development Setup
------------------
-
-See ``ARCHITECTURE.md`` for detailed system architecture and component descriptions.
-
-The platform can be run locally using Docker Compose:
-
-.. code-block:: bash
-
-   docker-compose up
-
-This will start all services including:
-
-- PostgreSQL (port 5432)
-- RabbitMQ (port 5672)
-- Control Plane API (port 8080)
-- Frontend (port 3000)
-- All worker services
-
-Individual Service Repositories
--------------------------------
-
-Each service is maintained in its own repository:
-
-- `Frontend <https://github.com/studojo/frontend>`_
-- `Assignment Gen <https://github.com/studojo/assignment-gen>`_
-- `Assignment Gen Worker <https://github.com/studojo/assignment-gen-worker>`_
-- `Control Plane <https://github.com/studojo/control-plane>`_
-- `Resume Service <https://github.com/studojo/resume-svc>`_
-- `Resume Worker <https://github.com/studojo/resume-worker>`_
-
-For detailed documentation on each service, refer to the README.rst file in each service directory.
-
-Architecture
-------------
-
-For a complete overview of the system architecture, message flows, and deployment details, see ``ARCHITECTURE.md``.
