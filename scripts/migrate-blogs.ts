@@ -77,16 +77,18 @@ function initBlobClient() {
 
 async function uploadImage(filePath: string, filename: string): Promise<string> {
   const containerClient = blobServiceClient.getContainerClient(containerName);
-  await containerClient.createIfNotExists({ access: "blob" });
+  // Create container with private access (images served through proxy)
+  await containerClient.createIfNotExists({ access: "private" });
 
   // Use original filename to preserve existing structure, or add timestamp if needed
   // For migration, we'll use the original filename to match existing URLs
   const sanitizedFilename = filename.replace(/[^a-zA-Z0-9.-]/g, "_");
   // Check if filename already has timestamp prefix, if not add one
   const hasTimestamp = /^\d+-/.test(sanitizedFilename);
+  // Blob name should NOT include container name prefix since container is already blog-images
   const blobName = hasTimestamp 
-    ? `blog-images/${sanitizedFilename}`
-    : `blog-images/${Date.now()}-${sanitizedFilename}`;
+    ? sanitizedFilename
+    : `${Date.now()}-${sanitizedFilename}`;
 
   const blockBlobClient = containerClient.getBlockBlobClient(blobName);
   const fileBuffer = await readFile(filePath);
@@ -97,7 +99,8 @@ async function uploadImage(filePath: string, filename: string): Promise<string> 
     },
   });
 
-  return `/api/images/${blobName}`;
+  // Return URL with blog-images prefix for the proxy route
+  return `/api/images/blog-images/${blobName}`;
 }
 
 function extractFilenameFromUrl(url: string): string | null {

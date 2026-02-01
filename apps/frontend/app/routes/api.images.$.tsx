@@ -39,9 +39,20 @@ export async function loader({ params }: Route.LoaderArgs) {
 
     // Extract container and blob name from path
     // Path format: blog-images/filename.jpg
+    // The container is "blog-images" and the blob name is just the filename
     const parts = path.split("/");
-    const containerName = parts[0];
-    const blobName = parts.slice(1).join("/");
+    let containerName: string;
+    let blobName: string;
+    
+    if (parts[0] === "blog-images" && parts.length > 1) {
+      // Path is blog-images/filename.jpg - container is blog-images, blob is filename.jpg
+      containerName = "blog-images";
+      blobName = parts.slice(1).join("/");
+    } else {
+      // Path is just filename.jpg - assume container is blog-images
+      containerName = "blog-images";
+      blobName = parts.join("/");
+    }
 
     const containerClient = blobServiceClient.getContainerClient(containerName);
     const blobClient = containerClient.getBlockBlobClient(blobName);

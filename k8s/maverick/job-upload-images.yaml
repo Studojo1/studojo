@@ -1,0 +1,57 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: maverick-upload-images
+  namespace: studojo
+spec:
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      imagePullSecrets:
+      - name: acr-secret
+      restartPolicy: Never
+      containers:
+      - name: upload-images
+        image: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io/maverick:latest
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          cd /src
+          npm install -g tsx typescript
+          export DATABASE_URL="${DATABASE_URL}"
+          export AZURE_STORAGE_ACCOUNT_NAME="${AZURE_STORAGE_ACCOUNT_NAME}"
+          export AZURE_STORAGE_ACCOUNT_KEY="${AZURE_STORAGE_ACCOUNT_KEY}"
+          export AZURE_STORAGE_CONTAINER_NAME="${AZURE_STORAGE_CONTAINER_NAME:-blog-images}"
+          if [ -f scripts/upload-blog-images.ts ]; then
+            tsx scripts/upload-blog-images.ts
+          else
+            echo "Script not found, trying alternative path..."
+            find /src -name "upload-blog-images.ts" -exec tsx {} \;
+          fi
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: database-url
+        - name: AZURE_STORAGE_ACCOUNT_NAME
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: azure-storage-account-name
+        - name: AZURE_STORAGE_ACCOUNT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: azure-storage-account-key
+        - name: AZURE_STORAGE_CONTAINER_NAME
+          value: "blog-images"
+        volumeMounts:
+        - name: blog-data
+          mountPath: /src/data
+      volumes:
+      - name: blog-data
+        persistentVolumeClaim:
+          claimName: blog-migration-data
+
+
