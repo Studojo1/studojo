@@ -53,6 +53,16 @@ spec:
             configMapKeyRef:
               name: app-config
               key: NODE_ENV
+        - name: CORS_ORIGINS
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: CORS_ORIGINS
+        - name: MAVERICK_URL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: MAVERICK_URL
         # Add other frontend env vars from secrets as needed
         - name: BETTER_AUTH_SECRET
           valueFrom:
