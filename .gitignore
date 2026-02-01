@@ -1,4 +1,7 @@
 .envrc
+.env
+.env.*
+!.env.example
 k8s/secrets/secrets.yml
 .github/.env.ci
 data/
