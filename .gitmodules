@@ -22,3 +22,9 @@
 [submodule "apps/frontend"]
 	path = apps/frontend
 	url = https://github.com/studojo/frontend.git
+[submodule "services/humanizer-svc"]
+	path = services/humanizer-svc
+	url = https://github.com/studojo/humanizer-svc.git
+[submodule "services/humanizer-worker"]
+	path = services/humanizer-worker
+	url = https://github.com/studojo/humanizer-worker.git

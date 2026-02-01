@@ -168,6 +168,12 @@ kubectl apply -f assignment-gen-worker/
 echo -e "${YELLOW}⚙️  Deploying Resume Worker...${NC}"
 kubectl apply -f resume-worker/
 
+echo -e "${YELLOW}🤖 Deploying Humanizer Service...${NC}"
+kubectl apply -f humanizer-svc/
+
+echo -e "${YELLOW}🤖 Deploying Humanizer Worker...${NC}"
+kubectl apply -f humanizer-worker/
+
 # Deploy ingress
 echo -e "${YELLOW}🌍 Configuring Ingress...${NC}"
 kubectl apply -f ingress/

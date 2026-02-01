@@ -19,6 +19,8 @@ This repository uses git submodules to organize the codebase:
 - ``services/control-plane/`` - Go orchestration service for auth, job lifecycle, and async coordination
 - ``services/resume-svc/`` - Go service for generating resume PDFs and packages
 - ``services/resume-worker/`` - Go worker service for processing resume jobs
+- ``services/humanizer-svc/`` - Python service for structure-preserving document humanization using Rephrasy API
+- ``services/humanizer-worker/`` - Go worker service for processing humanizer jobs
 
 Cloning the Repository
 -----------------------
@@ -65,6 +67,8 @@ Each service is maintained in its own repository:
 - `Control Plane <https://github.com/studojo/control-plane>`_
 - `Resume Service <https://github.com/studojo/resume-svc>`_
 - `Resume Worker <https://github.com/studojo/resume-worker>`_
+- `Humanizer Service <https://github.com/studojo/humanizer-svc>`_
+- `Humanizer Worker <https://github.com/studojo/humanizer-worker>`_
 
 For detailed documentation on each service, refer to the README.rst file in each service directory.
 

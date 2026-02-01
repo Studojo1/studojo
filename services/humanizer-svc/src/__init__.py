@@ -1,2 +1,0 @@
-"""Humanizer service source package."""
-
