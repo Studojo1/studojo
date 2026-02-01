@@ -1,19 +1,11 @@
-Studojo v2
-==========
-
-Microservices-based platform for student productivity tools, with a focus on assignment generation, resume building, and study aids.
-
-Overview
---------
-
-Studojo v2 is a microservices architecture consisting of multiple services working together to provide a comprehensive platform for students. This repository serves as the main entry point and contains all services as git submodules.
-
-Repository Structure
----------------------
+StudoJo Platform
+=================
 
 This repository uses git submodules to organize the codebase:
 
-- ``frontend/`` - React Router frontend application
+- ``apps/frontend/`` - React Router frontend application
+- ``apps/admin-panel/`` - Admin panel application
+- ``apps/maverick/`` - Maverick application
 - ``services/assignment-gen/`` - Python service for AI-powered assignment generation
 - ``services/assignment-gen-worker/`` - Go worker service for processing assignment generation jobs
 - ``services/control-plane/`` - Go orchestration service for auth, job lifecycle, and async coordination
@@ -62,6 +54,8 @@ Individual Service Repositories
 Each service is maintained in its own repository:
 
 - `Frontend <https://github.com/studojo/frontend>`_
+- `Admin Panel <https://github.com/studojo/admin-panel>`_
+- `Maverick <https://github.com/studojo/maverick>`_
 - `Assignment Gen <https://github.com/studojo/assignment-gen>`_
 - `Assignment Gen Worker <https://github.com/studojo/assignment-gen-worker>`_
 - `Control Plane <https://github.com/studojo/control-plane>`_
