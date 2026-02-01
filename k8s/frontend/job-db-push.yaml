@@ -18,8 +18,8 @@ spec:
       containers:
       - name: db-push
         image: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io/frontend:latest
-        # Use npx drizzle-kit with explicit config path
-        command: ["sh", "-c", "npx drizzle-kit push --config=drizzle.config.ts"]
+        # Use the db-push stage which has postgresql-client installed
+        command: ["sh", "-c", "apt-get update && apt-get install -y postgresql-client && for file in $(ls -1 drizzle/*.sql | sort); do echo \"Running migration: $file\"; psql $DATABASE_URL -f \"$file\" || exit 1; done"]
         workingDir: /src
         env:
         - name: DATABASE_URL
