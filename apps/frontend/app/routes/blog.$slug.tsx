@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router";
+import { useParams, useLoaderData } from "react-router";
 import { BlogContent } from "~/components/blog/blog-content";
 import { Header, Footer } from "~/components";
 import { FiClock, FiEye, FiCalendar } from "react-icons/fi";
@@ -62,34 +62,95 @@ import db from "~/lib/db";
 import { sql } from "drizzle-orm";
 
 export async function loader({ params }: Route.LoaderArgs) {
-  const { slug } = params;
+  try {
+    const { slug } = params;
 
-  const result = await db.execute(
-    sql`SELECT * FROM blog_posts WHERE slug = ${slug} AND status = 'published' LIMIT 1`
-  );
+    // Decode URL-encoded characters and escape for SQL
+    const decodedSlug = decodeURIComponent(slug);
+    const escapedSlug = decodedSlug.replace(/'/g, "''").trim();
+    
+    // Try exact match first (case-sensitive)
+    let result = await db.execute(
+      sql.raw(`SELECT * FROM blog_posts WHERE slug = '${escapedSlug}' AND status = 'published' LIMIT 1`)
+    );
 
-  if (result.rows.length === 0) {
-    throw new Response("Post not found", { status: 404 });
+    // If not found, try case-insensitive match
+    if (result.rows.length === 0) {
+      result = await db.execute(
+        sql.raw(`SELECT * FROM blog_posts WHERE LOWER(slug) = LOWER('${escapedSlug}') AND status = 'published' LIMIT 1`)
+      );
+    }
+
+    // If still not found, check if post exists with different status
+    if (result.rows.length === 0) {
+      const anyStatusResult = await db.execute(
+        sql.raw(`SELECT slug, status FROM blog_posts WHERE LOWER(slug) = LOWER('${escapedSlug}') LIMIT 1`)
+      );
+      
+      if (anyStatusResult.rows.length > 0) {
+        const postStatus = (anyStatusResult.rows[0] as any).status;
+        throw new Response(`Post found but status is '${postStatus}', not 'published'`, { status: 404 });
+      }
+      
+      throw new Response("Post not found", { status: 404 });
+    }
+
+    const post = result.rows[0] as any;
+
+    // Increment view count (don't let this fail the request)
+    try {
+      await db.execute(
+        sql`UPDATE blog_posts SET view_count = view_count + 1 WHERE id = ${post.id}`
+      );
+    } catch (error) {
+      // Continue anyway - don't fail the request
+    }
+
+    // Ensure all Date objects and other non-serializable data are properly converted
+    const serializedPost: BlogPost = {
+      id: String(post.id),
+      title: String(post.title),
+      slug: String(post.slug),
+      content: String(post.content),
+      excerpt: String(post.excerpt),
+      featured_image: post.featured_image ? String(post.featured_image) : undefined,
+      author_name: String(post.author_name),
+      author_email: String(post.author_email),
+      published_at: post.published_at ? new Date(post.published_at).toISOString() : String(post.published_at || ''),
+      reading_time: Number(post.reading_time) || 0,
+      view_count: Number(post.view_count) || 0,
+      categories: Array.isArray(post.categories) ? post.categories.map(String) : undefined,
+      tags: Array.isArray(post.tags) ? post.tags.map(String) : undefined,
+      seo_meta_title: post.seo_meta_title ? String(post.seo_meta_title) : undefined,
+      seo_meta_description: post.seo_meta_description ? String(post.seo_meta_description) : undefined,
+      seo_keywords: Array.isArray(post.seo_keywords) ? post.seo_keywords.map(String) : undefined,
+      seo_og_image: post.seo_og_image ? String(post.seo_og_image) : undefined,
+    };
+
+    return { post: serializedPost };
+  } catch (error) {
+    if (error instanceof Response) {
+      throw error;
+    }
+    console.error(`[blog.$slug] Loader error:`, error);
+    throw new Response("Internal server error", { status: 500 });
   }
-
-  const post = result.rows[0] as any;
-
-  // Increment view count
-  await db.execute(
-    sql`UPDATE blog_posts SET view_count = view_count + 1 WHERE id = ${post.id}`
-  );
-
-  return { post };
 }
 
 export default function BlogPost({ data }: Route.ComponentProps) {
-  const post = data?.post as BlogPost | undefined;
+  // Try both methods - data prop and useLoaderData hook
+  const loaderData = useLoaderData() as { post: BlogPost } | undefined;
+  const post = (loaderData?.post || data?.post) as BlogPost | undefined;
+
 
   if (!post) {
     return (
       <div className="min-h-screen bg-white p-8">
         <div className="mx-auto max-w-4xl">
           <p className="font-['Satoshi'] text-gray-600">Post not found</p>
+          {process.env.NODE_ENV === 'development' && (
+            <pre className="mt-4 text-xs">{JSON.stringify({ data: data ? 'exists' : 'undefined', post: post ? 'exists' : 'undefined' }, null, 2)}</pre>
+          )}
         </div>
       </div>
     );
@@ -109,13 +170,13 @@ export default function BlogPost({ data }: Route.ComponentProps) {
       )}
 
       <div className="mx-auto max-w-4xl px-4 py-12 md:px-8">
-        <header className="mb-8">
+        <header className="mb-12">
           {post.categories && post.categories.length > 0 && (
-            <div className="mb-4 flex flex-wrap gap-2">
+            <div className="mb-6 flex flex-wrap gap-2">
               {post.categories.map((cat) => (
                 <span
                   key={cat}
-                  className="rounded-full bg-violet-100 px-3 py-1 text-xs font-['Satoshi'] font-medium text-violet-700"
+                  className="rounded-full bg-violet-100 px-4 py-1.5 text-sm font-['Satoshi'] font-medium text-violet-700"
                 >
                   {cat}
                 </span>
@@ -123,13 +184,11 @@ export default function BlogPost({ data }: Route.ComponentProps) {
             </div>
           )}
 
-          <h1 className="mb-4 font-['Clash_Display'] text-4xl font-bold text-neutral-900 md:text-5xl">
+          <h1 className="mb-6 font-['Clash_Display'] text-4xl font-bold text-neutral-900 md:text-5xl leading-tight">
             {post.title}
           </h1>
 
-          <p className="mb-6 font-['Satoshi'] text-lg text-gray-600">{post.excerpt}</p>
-
-          <div className="flex flex-wrap items-center gap-6 text-sm font-['Satoshi'] text-gray-500">
+          <div className="flex flex-wrap items-center gap-6 text-sm font-['Satoshi'] text-gray-500 mb-6">
             <span className="flex items-center gap-2">
               <FiCalendar className="w-4 h-4" />
               {new Date(post.published_at).toLocaleDateString("en-US", {
@@ -150,7 +209,7 @@ export default function BlogPost({ data }: Route.ComponentProps) {
           </div>
         </header>
 
-        <div className="prose prose-lg max-w-none">
+        <div className="mt-8">
           <BlogContent content={post.content} />
         </div>
 

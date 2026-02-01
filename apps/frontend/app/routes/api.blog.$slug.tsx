@@ -6,9 +6,21 @@ import { sql } from "drizzle-orm";
 export async function loader({ params }: Route.LoaderArgs) {
   const { slug } = params;
 
-  const result = await db.execute(
-    sql`SELECT * FROM blog_posts WHERE slug = ${slug} AND status = 'published' LIMIT 1`
+  // Decode URL-encoded characters and escape for SQL
+  const decodedSlug = decodeURIComponent(slug);
+  const escapedSlug = decodedSlug.replace(/'/g, "''");
+  
+  // Try exact match first (case-sensitive)
+  let result = await db.execute(
+    sql.raw(`SELECT * FROM blog_posts WHERE slug = '${escapedSlug}' AND status = 'published' LIMIT 1`)
   );
+
+  // If not found, try case-insensitive match
+  if (result.rows.length === 0) {
+    result = await db.execute(
+      sql.raw(`SELECT * FROM blog_posts WHERE LOWER(slug) = LOWER('${escapedSlug}') AND status = 'published' LIMIT 1`)
+    );
+  }
 
   if (result.rows.length === 0) {
     return Response.json({ error: "Post not found" }, { status: 404 });
