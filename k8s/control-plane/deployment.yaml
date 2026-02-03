@@ -86,6 +86,16 @@ spec:
             secretKeyRef:
               name: app-secrets
               key: razorpay-key-test-secret
+        - name: AZURE_STORAGE_ACCOUNT_NAME
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: azure-storage-account-name
+        - name: AZURE_STORAGE_ACCOUNT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: azure-storage-account-key
         livenessProbe:
           httpGet:
             path: /health

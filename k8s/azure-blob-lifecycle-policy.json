@@ -1,0 +1,23 @@
+{
+  "rules": [
+    {
+      "name": "DeleteHumanizerTempFilesAfter24Hours",
+      "enabled": true,
+      "type": "Lifecycle",
+      "definition": {
+        "filters": {
+          "blobTypes": ["blockBlob"],
+          "prefixMatch": ["humanizer-temp/"]
+        },
+        "actions": {
+          "baseBlob": {
+            "delete": {
+              "daysAfterCreationGreaterThan": 1
+            }
+          }
+        }
+      }
+    }
+  ]
+}
+

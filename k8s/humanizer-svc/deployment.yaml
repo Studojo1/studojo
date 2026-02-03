@@ -25,6 +25,7 @@ spec:
       containers:
       - name: humanizer-svc
         image: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io/humanizer-svc:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000
           name: http
@@ -49,8 +50,53 @@ spec:
             configMapKeyRef:
               name: app-config
               key: HUMANIZER_TIMEOUT_SECONDS
+        - name: AZURE_STORAGE_ACCOUNT_NAME
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: azure-storage-account-name
+        - name: AZURE_STORAGE_ACCOUNT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: azure-storage-account-key
+        - name: AZURE_STORAGE_CONTAINER_NAME
+          value: "humanizer"
         - name: PORT
           value: "8000"
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: redis-url
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: redis-password
+        - name: HUMANIZER_MAX_CONCURRENT_JOBS
+          value: "5"
+        - name: HUMANIZER_REQUEST_QUEUE_SIZE
+          value: "20"
+        - name: HUMANIZER_MAX_CONCURRENT_API_CALLS
+          value: "5"
+        - name: HUMANIZER_API_TIMEOUT
+          value: "120"
+        - name: HUMANIZER_MEMORY_LIMIT_MB
+          value: "200"
+        # Optional: Verification thresholds (defaults: min_similarity=0.6, max_length_ratio=2.0)
+        - name: HUMANIZER_MIN_SIMILARITY
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: HUMANIZER_MIN_SIMILARITY
+              optional: true
+        - name: HUMANIZER_MAX_LENGTH_RATIO
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: HUMANIZER_MAX_LENGTH_RATIO
+              optional: true
         livenessProbe:
           httpGet:
             path: /health
@@ -69,11 +115,11 @@ spec:
           failureThreshold: 3
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "250m"
+            memory: "512Mi"  # Increased for parallel processing
+            cpu: "200m"      # Increased for parallel processing
           limits:
-            memory: "1Gi"
-            cpu: "500m"
+            memory: "2Gi"
+            cpu: "1000m"
 ---
 apiVersion: v1
 kind: Service

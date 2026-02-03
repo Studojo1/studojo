@@ -6,13 +6,13 @@ metadata:
 data:
   # Control Plane Config
   HTTP_PORT: "8080"
-  CORS_ORIGINS: "https://studojo.pro,https://www.studojo.pro,https://admin.studojo.pro,https://maverick.studojo.pro,https://studojo.com,https://www.studojo.com"
+  CORS_ORIGINS: "https://studojo.pro,https://www.studojo.pro,https://admin.studojo.pro,https://maverick.studojo.pro,https://studojo.com,https://www.studojo.com,https://admin.studojo.com,https://maverick.studojo.com"
   
   # Frontend Config
   NODE_ENV: "production"
-  BETTER_AUTH_URL: "https://studojo.pro"
+  BETTER_AUTH_URL: "https://studojo.com"
   CONTROL_PLANE_URL: "http://control-plane:8080"
-  MAVERICK_URL: "https://maverick.studojo.pro"
+  MAVERICK_URL: "https://maverick.studojo.com"
   
   # Resume Service Config
   PORT: "8086"
@@ -29,8 +29,11 @@ data:
   USE_LOCALSTACK_RESUME: "false"
   AZURE_STORAGE_CONTAINER_NAME_RESUME: "resumes"
   RESUME_SERVICE_URL: "http://resume-service:8086"
-  
+
   # Humanizer Config
   HUMANIZER_MAX_PARAGRAPHS: "1000"
-  HUMANIZER_TIMEOUT_SECONDS: "300"
+  HUMANIZER_TIMEOUT_SECONDS: "900"  # 15 minutes for large documents
   LOCALSTACK_ENDPOINT: "http://localstack:4566"
+  
+  # Redis Config
+  redis-url: "redis://redis:6379"

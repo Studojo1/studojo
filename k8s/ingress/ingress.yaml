@@ -13,6 +13,27 @@ metadata:
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     # cert-manager for automatic TLS certificates
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # Connection and timeout settings to handle network instability
+    # Increased timeouts for long-running operations like PDF parsing
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/keepalive-timeout: "300"
+    nginx.ingress.kubernetes.io/keepalive-requests: "10000"
+    # Enable HTTP/2 for better connection reuse
+    nginx.ingress.kubernetes.io/http2-push-preload: "true"
+    # Increase buffer sizes for large requests
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "8"
+    # Retry on connection errors - automatic upstream retry
+    nginx.ingress.kubernetes.io/proxy-next-upstream: "error timeout http_502 http_503 http_504"
+    nginx.ingress.kubernetes.io/proxy-next-upstream-timeout: "0"
+    nginx.ingress.kubernetes.io/proxy-next-upstream-tries: "3"
+    # Increased keepalive connections for better connection stability
+    nginx.ingress.kubernetes.io/upstream-keepalive-connections: "200"
+    nginx.ingress.kubernetes.io/upstream-keepalive-timeout: "300"
+    nginx.ingress.kubernetes.io/upstream-keepalive-requests: "10000"
 spec:
   ingressClassName: nginx  # Change to "azure-application-gateway" if using AGIC
   tls:
@@ -30,6 +51,12 @@ spec:
   - hosts:
     - maverick.studojo.pro
     secretName: maverick-studojo-pro-tls-secret  # Certificate for maverick subdomain
+  - hosts:
+    - admin.studojo.com
+    secretName: admin-studojo-com-tls-secret  # Certificate for admin .com subdomain
+  - hosts:
+    - maverick.studojo.com
+    secretName: maverick-studojo-com-tls-secret  # Certificate for maverick .com subdomain
   rules:
   # Frontend
   - host: studojo.pro
@@ -147,6 +174,28 @@ spec:
               number: 3001
   # Maverick Blog Editor - Dedicated Subdomain
   - host: maverick.studojo.pro
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: maverick
+            port:
+              number: 3002
+  # Admin Panel - Dedicated Subdomain (.com)
+  - host: admin.studojo.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: admin-panel
+            port:
+              number: 3001
+  # Maverick Blog Editor - Dedicated Subdomain (.com)
+  - host: maverick.studojo.com
     http:
       paths:
       - path: /
