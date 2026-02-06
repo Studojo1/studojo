@@ -29,6 +29,16 @@ spec:
         - containerPort: 3001
           name: http
         env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: database-url
+        - name: VITE_AUTH_URL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: BETTER_AUTH_URL
         - name: VITE_CONTROL_PLANE_URL
           valueFrom:
             configMapKeyRef:
