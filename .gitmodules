@@ -19,6 +19,9 @@
 [submodule "apps/maverick"]
 	path = apps/maverick
 	url = https://github.com/studojo/maverick.git
+[submodule "apps/partner-panel"]
+	path = apps/partner-panel
+	url = https://github.com/studojo/partner-panel.git
 [submodule "apps/frontend"]
 	path = apps/frontend
 	url = https://github.com/studojo/frontend.git

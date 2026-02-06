@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: partner-panel
+  namespace: studojo
+  labels:
+    app: partner-panel
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: partner-panel
+  template:
+    metadata:
+      labels:
+        app: partner-panel
+    spec:
+      imagePullSecrets:
+      - name: acr-secret
+      containers:
+      - name: partner-panel
+        image: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io/partner-panel:latest
+        ports:
+        - containerPort: 3003
+          name: http
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: database-url
+        - name: PARTNER_PANEL_JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: partner-panel-jwt-secret
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: NODE_ENV
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3003
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3003
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: partner-panel
+  namespace: studojo
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3003
+    targetPort: 3003
+    protocol: TCP
+    name: http
+  selector:
+    app: partner-panel
+

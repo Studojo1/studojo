@@ -57,6 +57,9 @@ spec:
   - hosts:
     - maverick.studojo.com
     secretName: maverick-studojo-com-tls-secret  # Certificate for maverick .com subdomain
+  - hosts:
+    - partners.studojo.com
+    secretName: partners-studojo-com-tls-secret  # Certificate for partner panel subdomain
   rules:
   # Frontend
   - host: studojo.pro
@@ -205,3 +208,14 @@ spec:
             name: maverick
             port:
               number: 3002
+  # Partner Panel - Dedicated Subdomain
+  - host: partners.studojo.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: partner-panel
+            port:
+              number: 3003

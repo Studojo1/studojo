@@ -1,6 +1,7 @@
 # studojo-v2 stack
-# Ports: postgres 5432 | rabbitmq 5672 | redis 6379 | control-plane 8080 | frontend 3000 | admin-panel 3001 | adminer 8081
-# Frontend: http://localhost:3000 | Control plane: http://localhost:8080 | Admin Panel: http://localhost:3001 | Adminer: http://localhost:8081
+# Ports: postgres 5432 | rabbitmq 5672 | redis 6379 | control-plane 8080 | frontend 3000 | admin-panel 3001 | maverick 3002 | partner-panel 3003 | adminer 8081
+# Frontend: http://localhost:3000 | Control plane: http://localhost:8080 | Admin Panel: http://localhost:3001 | Maverick: http://localhost:3002 | Partner Panel: http://localhost:3003 | Adminer: http://localhost:8081
+# Production: partners.studojo.com
 
 services:
   redis:
@@ -128,6 +129,26 @@ services:
     environment:
       DATABASE_URL: postgresql://studojo:studojo@postgres:5432/postgres
       VITE_AUTH_URL: http://localhost:3000
+      NODE_ENV: development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+
+  partner-panel:
+    build:
+      context: ./apps/partner-panel
+      dockerfile: Dockerfile
+      args:
+        PARTNER_PANEL_JWT_SECRET: ${PARTNER_PANEL_JWT_SECRET:-dev-secret-key-for-local-development-only-change-in-production-32chars}
+    ports:
+      - "3003:3003"
+    env_file:
+      - ./apps/partner-panel/.env.local
+    environment:
+      DATABASE_URL: postgresql://studojo:studojo@postgres:5432/postgres
+      PARTNER_PANEL_JWT_SECRET: ${PARTNER_PANEL_JWT_SECRET:-dev-secret-key-for-local-development-only-change-in-production-32chars}
       NODE_ENV: development
     depends_on:
       postgres:
