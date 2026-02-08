@@ -5,3 +5,7 @@
 k8s/secrets/secrets.yml
 .github/.env.ci
 data/
+
+# Node modules
+node_modules/
+**/node_modules/
