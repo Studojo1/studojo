@@ -72,3 +72,4 @@ echo "   kubectl logs -n studojo -l app=frontend"
 echo ""
 echo "🌐 Frontend should be available at: https://studojo.pro"
 
+

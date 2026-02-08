@@ -30,6 +30,11 @@ data:
   AZURE_STORAGE_CONTAINER_NAME_RESUME: "resumes"
   RESUME_SERVICE_URL: "http://resume-service:8086"
 
+  # Emailer Service Config
+  HTTP_PORT_EMAILER: "8087"
+  AZURE_EMAIL_SENDER_ADDRESS: "no-reply@studojo.com"
+  FRONTEND_URL: "https://studojo.com"
+
   # Humanizer Config
   HUMANIZER_MAX_PARAGRAPHS: "1000"
   HUMANIZER_TIMEOUT_SECONDS: "900"  # 15 minutes for large documents

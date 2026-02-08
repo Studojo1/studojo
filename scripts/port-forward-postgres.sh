@@ -64,3 +64,4 @@ echo ""
 # Start port-forwarding
 kubectl port-forward -n "$NAMESPACE" "service/$SERVICE_NAME" "$LOCAL_PORT:$REMOTE_PORT"
 
+

@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: emailer-service
+  namespace: studojo
+  labels:
+    app: emailer-service
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: emailer-service
+  template:
+    metadata:
+      labels:
+        app: emailer-service
+    spec:
+      imagePullSecrets:
+      - name: acr-secret
+      initContainers:
+      - name: wait-for-postgres
+        image: postgres:16
+        command: ['sh', '-c', 'until pg_isready -h postgres.studojo.svc.cluster.local -U studojo; do echo "Waiting for PostgreSQL..."; sleep 2; done']
+      - name: wait-for-rabbitmq
+        image: rabbitmq:latest
+        command: ['sh', '-c', 'until rabbitmq-diagnostics -q ping 2>/dev/null || timeout 1 bash -c "</dev/tcp/rabbitmq.studojo.svc.cluster.local/5672" 2>/dev/null; do echo "Waiting for RabbitMQ..."; sleep 2; done']
+      containers:
+      - name: emailer-service
+        image: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io/emailer-service:latest
+        ports:
+        - containerPort: 8087
+          name: http
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: database-url
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: rabbitmq-url
+        - name: AZURE_COMMUNICATION_SERVICE_CONNECTION_STRING
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: azure-communication-connection-string
+        - name: AZURE_EMAIL_SENDER_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: AZURE_EMAIL_SENDER_ADDRESS
+        - name: FRONTEND_URL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: FRONTEND_URL
+        - name: HTTP_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: HTTP_PORT_EMAILER
+        - name: TEMPLATE_DIR
+          value: "/app/templates"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8087
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8087
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: emailer-service
+  namespace: studojo
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8087
+    targetPort: 8087
+    protocol: TCP
+    name: http
+  selector:
+    app: emailer-service
+

@@ -31,3 +31,6 @@
 [submodule "services/humanizer-worker"]
 	path = services/humanizer-worker
 	url = https://github.com/studojo/humanizer-worker.git
+[submodule "services/emailer-service"]
+	path = services/emailer-service
+	url = https://github.com/studojo/emailer-service.git
