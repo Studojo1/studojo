@@ -146,111 +146,169 @@ studojo/
 
 ```mermaid
 graph TB
-    subgraph Client["Client Layer"]
-        Browser[Browser]
+    %% ============================================
+    %% PRESENTATION LAYER
+    %% ============================================
+    subgraph Presentation["PRESENTATION LAYER"]
+        Browser[Web Browser]
     end
 
-    subgraph Frontend["Frontend Service"]
-        FE[React Router Frontend<br/>Port: 3000]
-        Auth[Better Auth<br/>JWT + JWKS]
-        AuthDB[(Auth Database)]
+    %% ============================================
+    %% APPLICATION LAYER
+    %% ============================================
+    subgraph Application["APPLICATION LAYER"]
+        direction TB
+        
+        subgraph FrontendSvc["Frontend Service :3000"]
+            React[React Router SPA]
+            BetterAuth[Better Auth<br/>JWT + JWKS]
+        end
+        
+        subgraph ControlPlane["Control Plane API :8080"]
+            Gateway[HTTP Gateway]
+            JWTMiddleware[JWT Validation]
+            WorkflowSvc[Workflow Service]
+            PaymentSvc[Payment Service]
+            Publisher[Message Publisher]
+            Consumer[Message Consumer]
+        end
+        
+        subgraph EmailSvc["Email Service :8087"]
+            EmailProcessor[Email Processor]
+            EmailPrefs[Preferences Manager]
+        end
     end
 
-    subgraph ControlPlane["Control Plane Service"]
-        API[Control Plane API<br/>Port: 8080]
-        JWTAuth[JWT Middleware]
-        Workflow[Workflow Service]
-        Payments[Payment Service]
-        CPDB[(Control Plane Database)]
-        Publisher[Message Publisher]
-        Consumer[Message Consumer]
+    %% ============================================
+    %% INTEGRATION LAYER
+    %% ============================================
+    subgraph Integration["INTEGRATION LAYER"]
+        direction TB
+        
+        subgraph MessageBroker["RabbitMQ :5672"]
+            direction LR
+            JobsExchange[Jobs Exchange<br/>cp.jobs]
+            ResultsExchange[Results Exchange<br/>cp.results]
+            EventsExchange[Events Exchange<br/>cp.events]
+        end
     end
 
-    subgraph MessageBroker["Message Broker"]
-        RMQ[RabbitMQ<br/>Port: 5672]
-        JobsQ[Jobs Exchange<br/>cp.jobs]
-        ResultsQ[Results Exchange<br/>cp.results]
-        EventsQ[Events Exchange<br/>cp.events]
+    %% ============================================
+    %% PROCESSING LAYER
+    %% ============================================
+    subgraph Processing["PROCESSING LAYER"]
+        direction TB
+        
+        subgraph AssignmentWorker["Assignment Worker - Go"]
+            AssignSvc[Assignment Service]
+            PythonGen[Python Generator]
+        end
+        
+        subgraph ResumeWorker["Resume Worker - Go"]
+            ResumeSvc[Resume Service]
+            PDFGen[PDF/LaTeX Generator :8086]
+        end
     end
 
-    subgraph Workers["Worker Services"]
-        AssignWorker[Assignment Generator<br/>Go Service]
-        ResumeWorker[Resume Generator<br/>Go Service]
-        PyGen[Python Generator]
+    %% ============================================
+    %% DATA LAYER
+    %% ============================================
+    subgraph Data["DATA LAYER"]
+        direction LR
+        
+        subgraph PrimaryDB["PostgreSQL :5432"]
+            AuthDB[(Auth Schema)]
+            ControlDB[(Control Plane Schema)]
+            EmailDB[(Email Schema)]
+        end
+        
+        BlobStorage[(Azure Blob Storage<br/>LocalStack - Dev)]
     end
 
-    subgraph ResumeGen["Resume Service"]
-        ResumeSvc[Resume Service<br/>Port: 8086<br/>PDF/LaTeX]
+    %% ============================================
+    %% EXTERNAL LAYER
+    %% ============================================
+    subgraph External["EXTERNAL SERVICES"]
+        direction LR
+        OpenAI[OpenAI API<br/>GPT Models]
+        Twilio[Twilio<br/>SMS Gateway]
+        Razorpay[Razorpay<br/>Payment Gateway]
+        AzureComm[Azure Communication<br/>Email Service]
+        MailHog[MailHog :8025<br/>Dev SMTP]
     end
 
-    subgraph Storage["Storage Layer"]
-        DB[(PostgreSQL<br/>Port: 5432<br/>pgvector)]
-        Blob[Azure Blob Storage<br/>LocalStack Local]
-    end
-
-    subgraph EmailService["Email Service"]
-        Emailer[Emailer Service<br/>Port: 8087]
-        MailHog[MailHog<br/>Port: 8025<br/>Dev Only]
-        EmailDB[(Email Preferences<br/>Password Reset)]
-    end
-
-    subgraph External["External Services"]
-        OpenAI[OpenAI API]
-        Twilio[Twilio SMS]
-        Razorpay[Razorpay]
-        AzureEmail[Azure Communication<br/>Services Email]
-    end
-
-    Browser -->|HTTPS| FE
-    FE -->|JWT Auth| API
-    FE --> Auth
-    Auth --> AuthDB
+    %% ============================================
+    %% CONNECTIONS - PRESENTATION TO APPLICATION
+    %% ============================================
+    Browser -->|HTTPS| React
     
-    API --> JWTAuth
-    JWTAuth -.->|Validate| Auth
-    API --> Workflow
-    API --> Payments
+    %% ============================================
+    %% CONNECTIONS - WITHIN APPLICATION LAYER
+    %% ============================================
+    React -->|REST + JWT| Gateway
+    React -.->|Auth Requests| BetterAuth
+    React -->|Password Reset API| EmailProcessor
+    React -->|Publish| EventsExchange
     
-    Workflow --> CPDB
-    Workflow --> Publisher
+    Gateway --> JWTMiddleware
+    JWTMiddleware -.->|Validate Token| BetterAuth
+    Gateway --> WorkflowSvc
+    Gateway --> PaymentSvc
     
-    Publisher -->|Publish Jobs| JobsQ
-    JobsQ --> RMQ
-    RMQ --> JobsQ
+    WorkflowSvc --> Publisher
+    Publisher -->|Publish Jobs| JobsExchange
     
-    JobsQ -->|Assignment Jobs| AssignWorker
-    JobsQ -->|Resume Jobs| ResumeWorker
+    Consumer -->|Consume Results| ResultsExchange
+    Consumer --> WorkflowSvc
     
-    AssignWorker --> PyGen
-    PyGen --> OpenAI
-    AssignWorker -->|Store Files| Blob
+    %% ============================================
+    %% CONNECTIONS - APPLICATION TO DATA
+    %% ============================================
+    BetterAuth --> AuthDB
+    WorkflowSvc --> ControlDB
+    PaymentSvc --> ControlDB
+    EmailProcessor --> EmailDB
+    EmailPrefs --> EmailDB
     
-    ResumeWorker --> ResumeSvc
-    ResumeWorker -->|Store Files| Blob
+    %% ============================================
+    %% CONNECTIONS - APPLICATION TO EXTERNAL
+    %% ============================================
+    React -->|OTP/SMS| Twilio
+    PaymentSvc -->|Process Payment| Razorpay
     
-    AssignWorker -->|Publish Results| ResultsQ
-    ResumeWorker -->|Publish Results| ResultsQ
-    ResultsQ --> RMQ
-    RMQ --> ResultsQ
-    ResultsQ -->|Consume| Consumer
-    Consumer --> Workflow
+    %% ============================================
+    %% CONNECTIONS - INTEGRATION TO PROCESSING
+    %% ============================================
+    JobsExchange -->|Assignment Jobs| AssignSvc
+    JobsExchange -->|Resume Jobs| ResumeSvc
     
-    CPDB --> DB
-    AuthDB --> DB
+    %% ============================================
+    %% CONNECTIONS - WITHIN PROCESSING LAYER
+    %% ============================================
+    AssignSvc --> PythonGen
+    PythonGen -->|Generate Content| OpenAI
     
-    FE --> Twilio
-    Payments --> Razorpay
+    ResumeSvc --> PDFGen
     
-    FE -->|Publish Events| EventsQ
-    ResumeWorker -->|Publish Events| EventsQ
-    EventsQ --> RMQ
-    RMQ --> EventsQ
-    EventsQ -->|Consume Events| Emailer
-    Emailer --> EmailDB
-    Emailer -->|Development| MailHog
-    Emailer -->|Production| AzureEmail
-    FE -->|Password Reset| Emailer
-
+    %% ============================================
+    %% CONNECTIONS - PROCESSING TO DATA
+    %% ============================================
+    AssignSvc -->|Upload Generated Files| BlobStorage
+    ResumeSvc -->|Upload PDF Files| BlobStorage
+    
+    %% ============================================
+    %% CONNECTIONS - PROCESSING TO INTEGRATION
+    %% ============================================
+    AssignSvc -->|Publish Results| ResultsExchange
+    ResumeSvc -->|Publish Results| ResultsExchange
+    ResumeSvc -->|Publish Events| EventsExchange
+    
+    %% ============================================
+    %% CONNECTIONS - EVENT PROCESSING
+    %% ============================================
+    EventsExchange -->|Email Events| EmailProcessor
+    EmailProcessor -.->|Dev Mode| MailHog
+    EmailProcessor -.->|Production| AzureComm
 ```
 
 ## System Architecture
