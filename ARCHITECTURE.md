@@ -170,6 +170,7 @@ graph TB
         RMQ[RabbitMQ<br/>Port: 5672]
         JobsQ[Jobs Exchange<br/>cp.jobs]
         ResultsQ[Results Exchange<br/>cp.results]
+        EventsQ[Events Exchange<br/>cp.events]
     end
 
     subgraph Workers["Worker Services"]
@@ -240,12 +241,14 @@ graph TB
     FE --> Twilio
     Payments --> Razorpay
     
-    API -->|Publish Events| RMQ
-    RMQ -->|Consume Events| Emailer
+    FE -->|Publish Events| EventsQ
+    ResumeWorker -->|Publish Events| EventsQ
+    EventsQ --> RMQ
+    RMQ --> EventsQ
+    EventsQ -->|Consume Events| Emailer
     Emailer --> EmailDB
     Emailer -->|Development| MailHog
     Emailer -->|Production| AzureEmail
-    ResumeWorker -->|Publish Events| RMQ
     FE -->|Password Reset| Emailer
 
 ```
