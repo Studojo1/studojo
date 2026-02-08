@@ -12,6 +12,7 @@ Studojo v2 is a microservices-based platform for student productivity tools, wit
 - **Admin Panel**: User management, dissertation submissions, and career applications
 - **Payment Integration**: Razorpay integration for paid services
 - **Multi-Authentication**: JWT, phone OTP, Google OAuth, and Passkeys support
+- **Email Notifications**: Transactional emails via Azure Communication Services with user preferences
 
 ## Repository Structure
 
@@ -74,11 +75,21 @@ studojo/
 │   │   │   └── tex/              # LaTeX generation
 │   │   ├── templates/            # LaTeX templates
 │   │   └── Dockerfile
-│   └── resume-worker/            # Go worker for resume jobs
-│       ├── cmd/worker/           # Worker entry point
+│   ├── resume-worker/            # Go worker for resume jobs
+│   │   ├── cmd/worker/           # Worker entry point
+│   │   ├── internal/
+│   │   │   ├── blob/             # Azure Blob Storage client
+│   │   │   └── resume/           # Resume service client
+│   │   └── Dockerfile
+│   └── emailer-service/          # Email service (Port: 8087)
+│       ├── cmd/server/           # Service entry point
 │       ├── internal/
-│       │   ├── blob/             # Azure Blob Storage client
-│       │   └── resume/           # Resume service client
+│       │   ├── auth/             # Password reset token management
+│       │   ├── email/            # Azure Email client and templates
+│       │   ├── handlers/         # HTTP and event handlers
+│       │   ├── messaging/       # RabbitMQ consumer/publisher
+│       │   └── store/            # Database store
+│       ├── templates/            # HTML email templates
 │       └── Dockerfile
 │
 ├── k8s/                          # Kubernetes deployment configs
@@ -95,6 +106,7 @@ studojo/
 │   ├── redis/                    # Redis deployment
 │   ├── resume-service/           # Resume service deployment
 │   ├── resume-worker/            # Resume worker deployment
+│   ├── emailer-service/          # Emailer service deployment
 │   ├── secrets/                  # Secret templates
 │   └── deploy.sh                 # Deployment script
 │
@@ -175,10 +187,17 @@ graph TB
         Blob[Azure Blob Storage<br/>LocalStack Local]
     end
 
+    subgraph EmailService["Email Service"]
+        Emailer[Emailer Service<br/>Port: 8087]
+        MailHog[MailHog<br/>Port: 8025<br/>Dev Only]
+        EmailDB[(Email Preferences<br/>Password Reset)]
+    end
+
     subgraph External["External Services"]
         OpenAI[OpenAI API]
         Twilio[Twilio SMS]
         Razorpay[Razorpay]
+        AzureEmail[Azure Communication<br/>Services Email]
     end
 
     Browser -->|HTTPS| FE
@@ -220,6 +239,14 @@ graph TB
     
     FE --> Twilio
     Payments --> Razorpay
+    
+    API -->|Publish Events| RMQ
+    RMQ -->|Consume Events| Emailer
+    Emailer --> EmailDB
+    Emailer -->|Development| MailHog
+    Emailer -->|Production| AzureEmail
+    ResumeWorker -->|Publish Events| RMQ
+    FE -->|Password Reset| Emailer
 
 ```
 
@@ -249,6 +276,8 @@ graph TB
   - Blog (`/blog`, `/blog/:slug`)
   - Careers (`/careers`, `/my-applications`)
   - Resumes (`/resumes`)
+  - Settings (`/settings`, `/settings/email`)
+  - Password reset (`/forgot-password`, `/reset-password`)
   - API routes for backend integration
 
 #### Admin Panel (`apps/admin-panel`)
@@ -341,6 +370,36 @@ graph TB
   - `POST /optimize-resume` - Optimize resume for job posting
   - `GET /health` - Health check
 
+### Emailer Service
+- **Technology**: Go 1.25
+- **Port**: 8087
+- **Responsibilities**:
+  - Send transactional emails via Azure Communication Services Email
+  - Handle password reset flow (forgot password, reset password)
+  - Manage user email notification preferences
+  - Process event-driven email triggers (signup, resume optimized, internship applied)
+  - Support hybrid OAuth/password authentication model
+- **Email Types**:
+  - **Welcome Email**: Sent after user signup
+  - **Forgot Password**: Password reset with secure token
+  - **Password Changed**: Security notification when password is updated
+  - **Resume Optimized**: Notification when resume optimization completes
+  - **Internship Applied**: Confirmation when user applies to internship
+- **API Endpoints**:
+  - `POST /v1/email/forgot-password` - Request password reset
+  - `POST /v1/email/reset-password` - Confirm password reset
+  - `POST /v1/email/change-password` - Change password (logged-in users)
+  - `GET /v1/email/preferences/{user_id}` - Get email preferences
+  - `PUT /v1/email/preferences/{user_id}` - Update email preferences
+  - `POST /v1/email/events` - Publish email event (internal)
+  - `GET /health` - Health check
+- **Event Subscriptions** (RabbitMQ):
+  - `user.signup` - Welcome email
+  - `resume.optimized` - Resume optimization notification
+  - `internship.applied` - Application confirmation
+- **Development**: Uses MailHog for email visualization (http://localhost:8025)
+- **Production**: Uses Azure Communication Services Email
+
 ### Python Assignment Generator
 - **Technology**: Python 3.13, LangChain, LangGraph
 - **Responsibilities**:
@@ -388,7 +447,21 @@ graph TB
    Resume Worker → RabbitMQ (cp.results/result.resume-gen or result.resume-optimize) → Control Plane → Frontend (polling)
    ```
 
-8. **Payment Flow**:
+8. **Email Notification Flow**:
+   ```
+   Event Source → RabbitMQ (cp.events/event.*) → Emailer Service → Check Preferences → Render Template → Send Email
+   ```
+   - Event sources: Frontend (signup), Resume Worker (resume.optimized), Frontend (internship.applied)
+   - Emailer service subscribes to `cp.events` exchange with routing key `event.*`
+
+9. **Password Reset Flow**:
+   ```
+   Frontend → Emailer Service → Generate Token → Send Email → User Clicks Link → Frontend → Emailer Service → Reset Password
+   ```
+   - Supports both password users and OAuth users (hybrid model)
+   - OAuth users can create password via reset flow
+
+10. **Payment Flow**:
    ```
    Frontend → Control Plane (create order) → Razorpay Checkout → Frontend → Control Plane (verify) → Link to Job
    ```
@@ -420,6 +493,7 @@ graph TB
    - Optimizes resume for specific job posting
    - Returns optimized resume JSON
    - Result: optimized resume JSON
+   - Triggers email notification (if user has resume emails enabled)
 
 ### Job Lifecycle
 1. User submits job request via frontend
@@ -447,12 +521,14 @@ graph TB
   - **`public.*` schema** (Shared):
     - `user` - User accounts
     - `session` - User sessions
-    - `account` - OAuth accounts
+    - `account` - OAuth accounts and password accounts
     - `resumes` - User-saved resume data
     - `blog_posts` - Blog post content and metadata
     - `careers` - Career applications
     - `dissertations` - Dissertation submissions
     - `internships` - Internship listings
+    - `email_preferences` - User email notification preferences
+    - `password_reset_tokens` - Password reset token storage
 
 #### Azure Blob Storage (LocalStack for local)
 - **Containers**:
@@ -508,6 +584,16 @@ graph TB
 ### Resume Service
 - `PORT`: HTTP port (default: `8086`)
 
+### Emailer Service
+- `DATABASE_URL`: PostgreSQL connection
+- `RABBITMQ_URL`: RabbitMQ connection
+- `AZURE_COMMUNICATION_SERVICE_CONNECTION_STRING`: Azure Email connection string (or MailHog URL for development)
+- `AZURE_EMAIL_SENDER_ADDRESS`: Sender email (default: `no-reply@studojo.com`)
+- `FRONTEND_URL`: Frontend URL for email links
+- `HTTP_PORT`: HTTP server port (default: `8087`)
+- `TEMPLATE_DIR`: Template directory (default: `/app/templates`)
+- `MAILHOG_URL`: MailHog API URL (development only, default: `http://mailhog:8025`)
+
 ## Infrastructure Components
 
 ### Message Broker: RabbitMQ
@@ -517,10 +603,13 @@ graph TB
     - Routing keys: `job.assignment-gen`, `job.outline-gen`, `job.outline-edit`, `job.resume-gen`, `job.resume-optimize`
   - `cp.results` (topic) - Result events from workers to Control Plane
     - Routing keys: `result.assignment-gen`, `result.outline-gen`, `result.resume-gen`, etc.
+  - `cp.events` (topic) - Application events for email notifications
+    - Routing keys: `event.user.signup`, `event.resume.optimized`, `event.internship.applied`
 - **Queues**:
   - `assignment-gen.jobs` - Consumed by assignment-gen-worker
   - `resume.jobs` - Consumed by resume-worker
   - `control-plane.results` - Consumed by Control Plane (binds to `result.#`)
+  - `emailer.events` - Consumed by emailer-service (binds to `event.*`)
 
 ### Cache: Redis
 - **Port**: 6379
@@ -557,6 +646,8 @@ All services are containerized and orchestrated via Docker Compose:
 - **assignment-gen-worker**: Go worker
 - **resume-service**: Go service (Port: 8086)
 - **resume-worker**: Go worker
+- **emailer-service**: Go service (Port: 8087)
+- **mailhog**: Email visualizer for development (Port: 8025 web UI, 1025 SMTP)
 
 ### Production (Kubernetes)
 
@@ -655,6 +746,13 @@ See `k8s/deploy.sh` for deployment script and `k8s/README.md` for detailed deplo
 ### Google OAuth
 - Social authentication provider
 - Client ID and secret configured in frontend
+
+### Azure Communication Services Email
+- Transactional email provider for production
+- Domain: `studojo.com`
+- Sender: `no-reply@studojo.com`
+- Connection string configured via environment variables
+- Development: MailHog used instead for email visualization
 
 ## Development Workflow
 
