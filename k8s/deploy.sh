@@ -174,6 +174,13 @@ kubectl apply -f humanizer-svc/
 echo -e "${YELLOW}🤖 Deploying Humanizer Worker...${NC}"
 kubectl apply -f humanizer-worker/
 
+echo -e "${YELLOW}🛠️  Deploying Dev Panel...${NC}"
+kubectl apply -f dev-panel/
+
+# Deploy Azure Monitor
+echo -e "${YELLOW}📊 Deploying Azure Monitor...${NC}"
+kubectl apply -f azure-monitor/
+
 # Deploy ingress
 echo -e "${YELLOW}🌍 Configuring Ingress...${NC}"
 kubectl apply -f ingress/

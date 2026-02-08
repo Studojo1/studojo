@@ -47,6 +47,7 @@ Code structure standards, including Go service structure, package organization, 
 - **Control Plane API**: Central orchestration, JWT auth, job lifecycle management
 - **Worker Service**: Consumes jobs from RabbitMQ, processes them, publishes results
 - **Standalone Service**: Provides specific functionality without job processing
+- **Python/FastAPI Service**: Python-based services (e.g., Humanizer Service) for specialized processing
 
 ### Key Patterns
 

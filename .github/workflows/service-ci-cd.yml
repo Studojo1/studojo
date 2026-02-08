@@ -1,0 +1,142 @@
+name: Service CI/CD
+
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        required: true
+        type: string
+      service_path:
+        required: true
+        type: string
+      dockerfile_path:
+        required: false
+        type: string
+        default: ''
+      k8s_deployment_name:
+        required: true
+        type: string
+      k8s_container_name:
+        required: true
+        type: string
+      build_args:
+        required: false
+        type: string
+        default: ''
+    secrets:
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+      AZURE_CLIENT_SECRET:
+        required: true
+      KUBECONFIG:
+        required: true
+      DEV_PANEL_WEBHOOK_URL:
+        required: false
+
+env:
+  AZURE_RESOURCE_GROUP: studojo-rg
+  ACR_NAME: acrstudojo
+  KUBERNETES_NAMESPACE: studojo
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for tags
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: |
+          az acr login --name ${{ env.ACR_NAME }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Determine version
+        id: version
+        run: |
+          # Check if this is a tag push
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${{ github.ref_name }}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "is_tag=true" >> $GITHUB_OUTPUT
+          else
+            # Use commit SHA for non-tag builds
+            VERSION="${{ github.sha }}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "is_tag=false" >> $GITHUB_OUTPUT
+          fi
+          echo "Version: $VERSION"
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ inputs.service_path }}
+          file: ${{ inputs.dockerfile_path != '' && format('{0}/{1}', inputs.service_path, inputs.dockerfile_path) || format('{0}/Dockerfile', inputs.service_path) }}
+          push: true
+          tags: |
+            ${{ env.ACR_NAME }}.azurecr.io/${{ inputs.service_name }}:${{ steps.version.outputs.version }}
+            ${{ env.ACR_NAME }}.azurecr.io/${{ inputs.service_name }}:latest
+          cache-from: type=registry,ref=${{ env.ACR_NAME }}.azurecr.io/${{ inputs.service_name }}:latest
+          cache-to: type=inline
+          build-args: ${{ inputs.build_args }}
+
+      - name: Configure kubectl
+        if: steps.version.outputs.is_tag == 'true'
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Update Kubernetes deployment
+        if: steps.version.outputs.is_tag == 'true'
+        run: |
+          kubectl set image deployment/${{ inputs.k8s_deployment_name }} \
+            ${{ inputs.k8s_container_name }}=${{ env.ACR_NAME }}.azurecr.io/${{ inputs.service_name }}:${{ steps.version.outputs.version }} \
+            -n ${{ env.KUBERNETES_NAMESPACE }}
+          
+          # Add version label
+          kubectl label deployment/${{ inputs.k8s_deployment_name }} \
+            version=${{ steps.version.outputs.version }} \
+            -n ${{ env.KUBERNETES_NAMESPACE }} \
+            --overwrite
+
+      - name: Restart deployment
+        if: steps.version.outputs.is_tag == 'true'
+        run: |
+          kubectl rollout restart deployment/${{ inputs.k8s_deployment_name }} -n ${{ env.KUBERNETES_NAMESPACE }}
+          kubectl rollout status deployment/${{ inputs.k8s_deployment_name }} -n ${{ env.KUBERNETES_NAMESPACE }} --timeout=300s
+
+      - name: Report to dev panel
+        if: always() && secrets.DEV_PANEL_WEBHOOK_URL != ''
+        run: |
+          STATUS="${{ job.status }}"
+          curl -X POST "${{ secrets.DEV_PANEL_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"service\": \"${{ inputs.service_name }}\",
+              \"version\": \"${{ steps.version.outputs.version }}\",
+              \"status\": \"$STATUS\",
+              \"workflow_run_id\": \"${{ github.run_id }}\",
+              \"commit_sha\": \"${{ github.sha }}\",
+              \"ref\": \"${{ github.ref }}\"
+            }" || true
+

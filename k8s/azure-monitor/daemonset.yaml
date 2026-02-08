@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: azure-monitor-agent
+  namespace: studojo
+  labels:
+    app: azure-monitor-agent
+spec:
+  selector:
+    matchLabels:
+      app: azure-monitor-agent
+  template:
+    metadata:
+      labels:
+        app: azure-monitor-agent
+    spec:
+      serviceAccountName: azure-monitor-agent
+      containers:
+      - name: azure-monitor-agent
+        image: mcr.microsoft.com/azuremonitor/containerinsights/ciprod:latest
+        env:
+        - name: AZMON_CLUSTER_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: azure-monitor-config
+              key: cluster-name
+        - name: AZMON_WSID
+          valueFrom:
+            secretKeyRef:
+              name: azure-monitor-secrets
+              key: workspace-id
+        - name: AZMON_KEY
+          valueFrom:
+            secretKeyRef:
+              name: azure-monitor-secrets
+              key: workspace-key
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - name: docker-sock
+          mountPath: /var/run/docker.sock
+        - name: container-log-path
+          mountPath: /var/log/pods
+          readOnly: true
+      volumes:
+      - name: docker-sock
+        hostPath:
+          path: /var/run/docker.sock
+      - name: container-log-path
+        hostPath:
+          path: /var/log/pods
+          type: DirectoryOrCreate
+      tolerations:
+      - operator: Exists
+        effect: NoSchedule
+

@@ -8,8 +8,10 @@ Studojo v2 is a microservices-based platform for student productivity tools, wit
 
 - **AI-Powered Assignment Generation**: Interactive assignment creation with outline generation and editing
 - **Resume Building & Optimization**: Complete resume package generation (Resume, Cover Letter, CV) with job-specific optimization
+- **Document Humanization**: Structure-preserving document humanization service for assignment content
 - **Blog Management**: Rich text blog editor (Maverick) for content management
 - **Admin Panel**: User management, dissertation submissions, and career applications
+- **Partner Panel**: Partner management interface for company partners
 - **Payment Integration**: Razorpay integration for paid services
 - **Multi-Authentication**: JWT, phone OTP, Google OAuth, and Passkeys support
 - **Email Notifications**: Transactional emails via Azure Communication Services with user preferences
@@ -33,11 +35,17 @@ studojo/
 │   │   │   ├── lib/              # API clients and auth
 │   │   │   └── routes/           # Admin routes (dashboard, users, dissertations, careers)
 │   │   └── Dockerfile
-│   └── maverick/                 # Blog editor (Port: 3002)
+│   ├── maverick/                 # Blog editor (Port: 3002)
+│   │   ├── app/
+│   │   │   ├── components/       # Blog and internship components
+│   │   │   ├── lib/              # Blob storage, auth, DB utilities
+│   │   │   └── routes/           # Blog and internship routes
+│   │   └── Dockerfile
+│   └── partner-panel/            # Partner management interface (Port: 3003)
 │       ├── app/
-│       │   ├── components/       # Blog and internship components
-│       │   ├── lib/              # Blob storage, auth, DB utilities
-│       │   └── routes/           # Blog and internship routes
+│       │   ├── components/       # Partner components
+│       │   ├── lib/              # API clients and auth
+│       │   └── routes/           # Partner routes
 │       └── Dockerfile
 │
 ├── services/                      # Backend microservices
@@ -81,6 +89,19 @@ studojo/
 │   │   │   ├── blob/             # Azure Blob Storage client
 │   │   │   └── resume/           # Resume service client
 │   │   └── Dockerfile
+│   ├── humanizer-svc/            # Document humanization service (Port: 8000)
+│   │   ├── app.py                # FastAPI application
+│   │   ├── src/                  # Humanization pipeline
+│   │   │   ├── pipeline.py       # Main pipeline
+│   │   │   ├── paragraph_humanizer.py
+│   │   │   └── ...
+│   │   └── Dockerfile
+│   ├── humanizer-worker/         # Go worker for humanization jobs
+│   │   ├── cmd/worker/           # Worker entry point
+│   │   ├── internal/
+│   │   │   ├── blob/             # Azure Blob Storage client
+│   │   │   └── humanizer/        # Humanizer service client
+│   │   └── Dockerfile
 │   └── emailer-service/          # Email service (Port: 8087)
 │       ├── cmd/server/           # Service entry point
 │       ├── internal/
@@ -106,6 +127,9 @@ studojo/
 │   ├── redis/                    # Redis deployment
 │   ├── resume-service/           # Resume service deployment
 │   ├── resume-worker/            # Resume worker deployment
+│   ├── humanizer-svc/            # Humanizer service deployment
+│   ├── humanizer-worker/         # Humanizer worker deployment
+│   ├── partner-panel/            # Partner panel deployment
 │   ├── emailer-service/          # Emailer service deployment
 │   ├── secrets/                  # Secret templates
 │   └── deploy.sh                 # Deployment script
@@ -208,6 +232,11 @@ graph TB
             ResumeSvc[Resume Service]
             PDFGen[PDF/LaTeX Generator :8086]
         end
+        
+        subgraph HumanizerWorker["Humanizer Worker - Go"]
+            HumanizerSvc[Humanizer Service :8000]
+            RephrasyAPI[Rephrasy API]
+        end
     end
 
     %% ============================================
@@ -281,6 +310,7 @@ graph TB
     %% ============================================
     JobsExchange -->|Assignment Jobs| AssignSvc
     JobsExchange -->|Resume Jobs| ResumeSvc
+    JobsExchange -->|Humanizer Jobs| HumanizerSvc
     
     %% ============================================
     %% CONNECTIONS - WITHIN PROCESSING LAYER
@@ -290,11 +320,15 @@ graph TB
     
     ResumeSvc --> PDFGen
     
+    HumanizerSvc -->|Humanize Content| RephrasyAPI
+    HumanizerSvc -->|Repair Agent| OpenAI
+    
     %% ============================================
     %% CONNECTIONS - PROCESSING TO DATA
     %% ============================================
     AssignSvc -->|Upload Generated Files| BlobStorage
     ResumeSvc -->|Upload PDF Files| BlobStorage
+    HumanizerSvc -->|Upload Humanized Files| BlobStorage
     
     %% ============================================
     %% CONNECTIONS - PROCESSING TO INTEGRATION
@@ -302,6 +336,7 @@ graph TB
     AssignSvc -->|Publish Results| ResultsExchange
     ResumeSvc -->|Publish Results| ResultsExchange
     ResumeSvc -->|Publish Events| EventsExchange
+    HumanizerSvc -->|Publish Results| ResultsExchange
     
     %% ============================================
     %% CONNECTIONS - EVENT PROCESSING
@@ -376,6 +411,20 @@ graph TB
   - `/blog/new` - Create new post
   - `/blog/:id/edit` - Edit post
   - `/internships` - Internship management
+
+#### Partner Panel (`apps/partner-panel`)
+- **Technology**: React Router v7, Vite, TypeScript
+- **Port**: 3003
+- **Access**: Requires partner authentication
+- **Features**:
+  - Partner company management
+  - Internship posting and management
+  - Application review
+  - Partner user management
+- **Routes**:
+  - `/` - Partner dashboard
+  - `/internships` - Internship management
+  - `/applications` - Application review
 
 ### Control Plane
 - **Technology**: Go 1.23
@@ -470,6 +519,34 @@ graph TB
   - Document formatting (DOCX)
   - Humanization and uniqueness checking
 
+### Humanizer Service
+- **Technology**: Python 3.13, FastAPI
+- **Port**: 8000
+- **Responsibilities**:
+  - Structure-preserving document humanization
+  - Paragraph-level content humanization using Rephrasy API
+  - Document structure preservation (headings, tables, figures, references)
+  - Verification and repair of humanized content
+  - Parallel processing of multiple paragraphs
+- **API Endpoints**:
+  - `POST /humanize` - Humanize a DOCX file (multipart/form-data)
+  - `GET /health` - Health check
+- **Environment Variables**:
+  - `REPHRASY_API_KEY`: Rephrasy API key (required)
+  - `OPENAI_API_KEY`: OpenAI API key (required for repair agent)
+  - `HUMANIZER_MAX_PARAGRAPHS`: Maximum paragraphs to process (default: 1000)
+  - `HUMANIZER_TIMEOUT_SECONDS`: Timeout for processing (default: 300)
+  - `PORT`: HTTP server port (default: 8000)
+
+### Humanizer Worker
+- **Technology**: Go 1.23
+- **Responsibilities**:
+  - Consume jobs from RabbitMQ (`humanizer.jobs` queue)
+  - Handle `humanizer` job type
+  - Call Humanizer Service for document humanization
+  - Upload humanized documents to Azure Blob Storage
+  - Publish result events to RabbitMQ
+
 ## Message Flow
 
 1. **Assignment Job Submission**:
@@ -527,6 +604,21 @@ graph TB
    Frontend → Control Plane (create order) → Razorpay Checkout → Frontend → Control Plane (verify) → Link to Job
    ```
 
+11. **Humanizer Job Submission**:
+   ```
+   Frontend → Control Plane API → RabbitMQ (cp.jobs/job.humanizer)
+   ```
+
+12. **Humanizer Job Processing**:
+   ```
+   RabbitMQ → Humanizer Worker → Humanizer Service → Rephrasy API → Blob Storage
+   ```
+
+13. **Humanizer Result Delivery**:
+   ```
+   Humanizer Worker → RabbitMQ (cp.results/result.humanizer) → Control Plane → Frontend (polling)
+   ```
+
 ## Data Flow
 
 ### Job Types
@@ -555,6 +647,12 @@ graph TB
    - Returns optimized resume JSON
    - Result: optimized resume JSON
    - Triggers email notification (if user has resume emails enabled)
+
+6. **humanizer**: Document humanization (free)
+   - Humanizes DOCX documents while preserving structure
+   - Uses Rephrasy API for paragraph-level humanization
+   - Preserves headings, tables, figures, references
+   - Result: download_url to humanized.docx
 
 ### Job Lifecycle
 1. User submits job request via frontend
@@ -597,6 +695,8 @@ graph TB
     - Path pattern: `{job_id}/assignment.docx`
   - `resumes` - Resume packages
     - Path pattern: `{job_id}/resume-package.zip`
+  - `humanizer` - Humanized documents
+    - Path pattern: `{job_id}/humanized.docx`
   - `blog-images` - Blog post images
     - Path pattern: `{post_id}/{filename}`
 - **URLs**: 
@@ -661,7 +761,7 @@ graph TB
 - **Port**: 5672
 - **Exchanges**:
   - `cp.jobs` (topic) - Job commands from Control Plane to workers
-    - Routing keys: `job.assignment-gen`, `job.outline-gen`, `job.outline-edit`, `job.resume-gen`, `job.resume-optimize`
+    - Routing keys: `job.assignment-gen`, `job.outline-gen`, `job.outline-edit`, `job.resume-gen`, `job.resume-optimize`, `job.humanizer`
   - `cp.results` (topic) - Result events from workers to Control Plane
     - Routing keys: `result.assignment-gen`, `result.outline-gen`, `result.resume-gen`, etc.
   - `cp.events` (topic) - Application events for email notifications
@@ -669,6 +769,7 @@ graph TB
 - **Queues**:
   - `assignment-gen.jobs` - Consumed by assignment-gen-worker
   - `resume.jobs` - Consumed by resume-worker
+  - `humanizer.jobs` - Consumed by humanizer-worker
   - `control-plane.results` - Consumed by Control Plane (binds to `result.#`)
   - `emailer.events` - Consumed by emailer-service (binds to `event.*`)
 
@@ -702,11 +803,14 @@ All services are containerized and orchestrated via Docker Compose:
 - **frontend-db-push**: Database migration runner (one-time job)
 - **admin-panel**: React Router app (Port: 3001)
 - **maverick**: Blog editor (Port: 3002)
+- **partner-panel**: Partner management (Port: 3003)
 - **control-plane**: Go service (Port: 8080)
 - **assignment-gen**: Python service
 - **assignment-gen-worker**: Go worker
 - **resume-service**: Go service (Port: 8086)
 - **resume-worker**: Go worker
+- **humanizer-svc**: Python FastAPI service (Port: 8000)
+- **humanizer-worker**: Go worker
 - **emailer-service**: Go service (Port: 8087)
 - **mailhog**: Email visualizer for development (Port: 8025 web UI, 1025 SMTP)
 
@@ -734,6 +838,7 @@ See `k8s/deploy.sh` for deployment script and `k8s/README.md` for detailed deplo
 - **Role-based access control**:
   - `admin` - Full access to admin panel
   - `ops` - Access to Maverick blog editor
+  - `dev` - Access to dev panel for monitoring and observability
   - Regular users - Standard frontend access
 
 ### Data Protection
@@ -792,8 +897,9 @@ See `k8s/deploy.sh` for deployment script and `k8s/README.md` for detailed deplo
 - API key configured via environment variables
 
 ### Rephrasy
-- Content humanization service
+- Content humanization service used by Humanizer Service
 - API key configured via environment variables
+- Used for paragraph-level document humanization
 
 ### Razorpay
 - Payment gateway for assignment generation

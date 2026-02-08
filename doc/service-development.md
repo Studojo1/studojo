@@ -57,10 +57,31 @@ worker-name/
 
 Standalone services provide specific functionality without job processing:
 
-- Entry point: `cmd/server/main.go`
+- Entry point: `cmd/server/main.go` (Go) or `app.py` (Python)
 - HTTP endpoints for specific operations
 - No RabbitMQ integration
 - Health endpoints
+
+### Python/FastAPI Service
+
+Python services (like Humanizer Service) follow this pattern:
+
+- Entry point: `app.py` (FastAPI application)
+- HTTP endpoints for specific operations
+- Can be called by workers or directly
+- Health endpoints
+
+Example structure:
+```
+service-name/
+├── app.py                 # FastAPI application
+├── src/                   # Source code
+│   ├── pipeline.py       # Main processing logic
+│   └── ...
+├── pyproject.toml        # Python dependencies
+├── Dockerfile
+└── README.rst
+```
 
 ## Project Structure
 
@@ -220,6 +241,13 @@ func main() {
 - `AZURE_STORAGE_CONTAINER_NAME`: Container name
 - `USE_LOCALSTACK`: Use LocalStack for local development (true/false)
 - `LOCALSTACK_ENDPOINT`: LocalStack endpoint URL
+
+#### Python/FastAPI Service (e.g., Humanizer Service)
+
+- `PORT`: HTTP server port (default: 8000)
+- `REPHRASY_API_KEY`: Rephrasy API key (if using Rephrasy)
+- `OPENAI_API_KEY`: OpenAI API key (if using OpenAI)
+- Service-specific configuration variables (e.g., `HUMANIZER_MAX_PARAGRAPHS`)
 
 ### Default Values
 

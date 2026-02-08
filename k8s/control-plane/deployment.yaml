@@ -19,6 +19,12 @@ spec:
     metadata:
       labels:
         app: control-plane
+        version: latest
+      annotations:
+        # Azure Monitor annotations for log collection
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
     spec:
       imagePullSecrets:
       - name: acr-secret

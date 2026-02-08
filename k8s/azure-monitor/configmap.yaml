@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: azure-monitor-config
+  namespace: studojo
+data:
+  cluster-name: studojo-cluster
+  log-collection-enabled: "true"
+  metrics-collection-enabled: "true"
+

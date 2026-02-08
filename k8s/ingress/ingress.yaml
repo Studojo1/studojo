@@ -60,6 +60,9 @@ spec:
   - hosts:
     - partners.studojo.com
     secretName: partners-studojo-com-tls-secret  # Certificate for partner panel subdomain
+  - hosts:
+    - dev.studojo.com
+    secretName: dev-studojo-com-tls-secret  # Certificate for dev panel subdomain
   rules:
   # Frontend
   - host: studojo.pro
@@ -219,3 +222,14 @@ spec:
             name: partner-panel
             port:
               number: 3003
+  # Dev Panel - Dedicated Subdomain
+  - host: dev.studojo.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: dev-panel
+            port:
+              number: 3004

@@ -24,6 +24,7 @@ Workers are background services that consume jobs from RabbitMQ, process them, a
 
 - **Assignment Gen Worker**: Processes assignment generation jobs, invokes Python generators, uploads files to blob storage
 - **Resume Worker**: Processes resume generation and optimization jobs, calls resume service, uploads files to blob storage
+- **Humanizer Worker**: Processes document humanization jobs, calls humanizer service, uploads humanized files to blob storage
 
 Workers are stateless and can be horizontally scaled. They handle their own resource cleanup and error reporting.
 
@@ -33,6 +34,7 @@ Standalone services provide specific functionality without being part of the job
 
 - **Resume Service**: Generates resume PDFs and packages from JSON data using LaTeX
 - **Assignment Gen Service**: Python service that performs the actual assignment generation using LLMs
+- **Humanizer Service**: Python FastAPI service that humanizes DOCX documents while preserving structure using Rephrasy API
 
 These services are called by workers but can also be used independently.
 
@@ -121,6 +123,7 @@ Azure Blob Storage (LocalStack for local development) stores generated files:
 
 - **assignments container**: Assignment documents (DOCX files)
 - **resumes container**: Resume packages (ZIP files)
+- **humanizer container**: Humanized documents (DOCX files)
 
 Files are organized by job_id and accessed via signed URLs.
 
