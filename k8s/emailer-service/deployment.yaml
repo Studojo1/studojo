@@ -50,7 +50,7 @@ spec:
           valueFrom:
             secretKeyRef:
               name: app-secrets
-              key: azure-communication-services-connection-string
+              key: azure-communication-connection-string
         - name: AZURE_EMAIL_SENDER_ADDRESS
           valueFrom:
             configMapKeyRef:
