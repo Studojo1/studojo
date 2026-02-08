@@ -34,6 +34,7 @@ data:
   HTTP_PORT_EMAILER: "8087"
   AZURE_EMAIL_SENDER_ADDRESS: "no-reply@studojo.com"
   FRONTEND_URL: "https://studojo.com"
+  EMAIL_FRONTEND_URL: "https://studojo.com"
 
   # Humanizer Config
   HUMANIZER_MAX_PARAGRAPHS: "1000"

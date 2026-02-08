@@ -50,7 +50,7 @@ spec:
           valueFrom:
             secretKeyRef:
               name: app-secrets
-              key: azure-communication-connection-string
+              key: azure-communication-services-connection-string
         - name: AZURE_EMAIL_SENDER_ADDRESS
           valueFrom:
             configMapKeyRef:
@@ -61,6 +61,11 @@ spec:
             configMapKeyRef:
               name: app-config
               key: FRONTEND_URL
+        - name: EMAIL_FRONTEND_URL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: EMAIL_FRONTEND_URL
         - name: HTTP_PORT
           valueFrom:
             configMapKeyRef:
