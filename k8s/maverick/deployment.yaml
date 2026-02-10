@@ -25,6 +25,7 @@ spec:
       containers:
       - name: maverick
         image: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io/maverick:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 3002
           name: http

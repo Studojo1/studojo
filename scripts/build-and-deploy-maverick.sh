@@ -75,5 +75,5 @@ echo "2. Check Maverick status:"
 echo "   kubectl get pods -n studojo -l app=maverick"
 echo "   kubectl logs -n studojo -l app=maverick"
 echo ""
-echo "3. Access Maverick at: https://maverick.studojo.pro"
+echo "3. Access Maverick at: https://maverick.studojo.com"
 

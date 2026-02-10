@@ -121,9 +121,9 @@ Or use the script:
 
 ## Access Points
 
-- **Maverick Blog Editor**: https://maverick.studojo.pro
-- **Public Blog**: https://studojo.pro/blog (or your frontend domain)
-- **Admin Panel**: https://admin.studojo.pro
+- **Maverick Blog Editor**: https://maverick.studojo.com
+- **Public Blog**: https://studojo.com/blog (or your frontend domain)
+- **Admin Panel**: https://admin.studojo.com
 
 ## Troubleshooting
 
@@ -171,7 +171,7 @@ kubectl get ingress -n studojo
 kubectl get certificates -n studojo
 
 # Check DNS resolution
-nslookup maverick.studojo.pro
+nslookup maverick.studojo.com
 ```
 
 ## Data Migration Details

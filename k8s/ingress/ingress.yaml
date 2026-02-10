@@ -38,19 +38,10 @@ spec:
   ingressClassName: nginx  # Change to "azure-application-gateway" if using AGIC
   tls:
   - hosts:
-    - studojo.pro
-    - www.studojo.pro
-    - api.studojo.pro
     - studojo.com
     - www.studojo.com
     - api.studojo.com
     secretName: studojo-tls-secret  # Create this secret with your TLS cert, or use cert-manager
-  - hosts:
-    - admin.studojo.pro
-    secretName: admin-studojo-pro-tls-secret  # Separate certificate for admin subdomain
-  - hosts:
-    - maverick.studojo.pro
-    secretName: maverick-studojo-pro-tls-secret  # Certificate for maverick subdomain
   - hosts:
     - admin.studojo.com
     secretName: admin-studojo-com-tls-secret  # Certificate for admin .com subdomain
@@ -64,27 +55,7 @@ spec:
     - dev.studojo.com
     secretName: dev-studojo-com-tls-secret  # Certificate for dev panel subdomain
   rules:
-  # Frontend
-  - host: studojo.pro
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: frontend
-            port:
-              number: 3000
-  - host: www.studojo.pro
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: frontend
-            port:
-              number: 3000
+  # Frontend (.com)
   - host: studojo.com
     http:
       paths:
@@ -115,17 +86,7 @@ spec:
             name: control-plane
             port:
               number: 8080
-  # Control Plane API
-  - host: api.studojo.pro
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: control-plane
-            port:
-              number: 8080
+  # Control Plane API (.com)
   # Admin Panel
   - host: studojo.com
     http:

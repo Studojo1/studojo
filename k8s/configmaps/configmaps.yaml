@@ -6,7 +6,7 @@ metadata:
 data:
   # Control Plane Config
   HTTP_PORT: "8080"
-  CORS_ORIGINS: "https://studojo.pro,https://www.studojo.pro,https://admin.studojo.pro,https://maverick.studojo.pro,https://studojo.com,https://www.studojo.com,https://admin.studojo.com,https://maverick.studojo.com"
+  CORS_ORIGINS: "https://studojo.com,https://www.studojo.com,https://admin.studojo.com,https://maverick.studojo.com"
   
   # Frontend Config
   NODE_ENV: "production"

@@ -9,39 +9,9 @@ spec:
     name: letsencrypt-prod
     kind: ClusterIssuer
   dnsNames:
-    - studojo.pro
-    - www.studojo.pro
-    - api.studojo.pro
     - studojo.com
     - www.studojo.com
     - api.studojo.com
----
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: admin-studojo-pro-tls
-  namespace: studojo
-spec:
-  secretName: admin-studojo-pro-tls-secret
-  issuerRef:
-    name: letsencrypt-prod
-    kind: ClusterIssuer
-  dnsNames:
-    - admin.studojo.pro
----
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: maverick-studojo-pro-tls
-  namespace: studojo
-spec:
-  secretName: maverick-studojo-pro-tls-secret
-  issuerRef:
-    name: letsencrypt-prod
-    kind: ClusterIssuer
-  dnsNames:
-    - maverick.studojo.pro
----
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:

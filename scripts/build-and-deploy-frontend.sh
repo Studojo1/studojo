@@ -70,6 +70,13 @@ echo "📋 Check Frontend status:"
 echo "   kubectl get pods -n studojo -l app=frontend"
 echo "   kubectl logs -n studojo -l app=frontend"
 echo ""
-echo "🌐 Frontend should be available at: https://studojo.pro"
+echo "🌐 Frontend should be available at: https://studojo.com"
+
+
+
+
+
+
+
 
 

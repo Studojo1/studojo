@@ -18,7 +18,7 @@ echo "📦 Storage Account: $STORAGE_ACCOUNT"
 echo ""
 
 # Configure CORS for Blob service
-# Allow origins: https://studojo.pro, https://www.studojo.pro, https://studojo.com, https://www.studojo.com
+# Allow origins: https://studojo.com, https://www.studojo.com
 # Allow methods: PUT, GET, HEAD, OPTIONS
 # Allow headers: x-ms-blob-type, Content-Type, x-ms-version
 # Max age: 3600 seconds (1 hour)
@@ -26,7 +26,7 @@ echo ""
 az storage cors add \
   --services b \
   --methods PUT GET HEAD OPTIONS \
-  --origins "https://studojo.pro" "https://www.studojo.pro" "https://studojo.com" "https://www.studojo.com" \
+  --origins "https://studojo.com" "https://www.studojo.com" \
   --allowed-headers "x-ms-blob-type" "Content-Type" "x-ms-version" "x-ms-date" "Authorization" \
   --exposed-headers "x-ms-request-id" "ETag" \
   --max-age 3600 \
@@ -37,8 +37,6 @@ echo ""
 echo "✅ CORS configured successfully!"
 echo ""
 echo "Allowed origins:"
-echo "  - https://studojo.pro"
-echo "  - https://www.studojo.pro"
 echo "  - https://studojo.com"
 echo "  - https://www.studojo.com"
 echo ""

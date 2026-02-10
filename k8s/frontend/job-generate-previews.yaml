@@ -1,0 +1,58 @@
+# Kubernetes Job to generate preview images for templates and examples
+# Run this after seeding examples
+# Note: Requires canvas and pdfjs-dist packages (should be in Docker image)
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: frontend-generate-previews
+  namespace: studojo
+spec:
+  template:
+    spec:
+      imagePullSecrets:
+      - name: acr-secret
+      initContainers:
+      - name: wait-for-postgres
+        image: postgres:16
+        command: ['sh', '-c', 'until pg_isready -h postgres.studojo.svc.cluster.local -U studojo; do echo "Waiting for PostgreSQL..."; sleep 2; done']
+      - name: wait-for-resume-service
+        image: curlimages/curl:latest
+        command: ['sh', '-c', 'until curl -f http://resume-service.studojo.svc.cluster.local:8086/health 2>/dev/null || curl -f http://resume-service.studojo.svc.cluster.local:8086 2>/dev/null; do echo "Waiting for Resume Service..."; sleep 2; done']
+      containers:
+      - name: generate-previews
+        image: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io/frontend:latest
+        command: ["sh", "-c", "cd /src && npm run generate:template-previews && npm run generate:example-previews"]
+        workingDir: /src
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: database-url
+        - name: RESUME_SERVICE_URL
+          value: "http://resume-service.studojo.svc.cluster.local:8086"
+        - name: USE_LOCALSTACK
+          value: "false"
+        - name: AZURE_STORAGE_ACCOUNT_NAME
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: azure-storage-account-name
+        - name: AZURE_STORAGE_ACCOUNT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: azure-storage-account-key
+        - name: AZURE_STORAGE_CONTAINER_NAME
+          value: "resumes"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+      restartPolicy: Never
+  backoffLimit: 2
+

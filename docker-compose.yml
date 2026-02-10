@@ -11,7 +11,7 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -29,7 +29,7 @@ services:
       POSTGRES_PASSWORD: studojo
       POSTGRES_DB: postgres
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U studojo -d postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U studojo -d postgres" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -42,7 +42,7 @@ services:
     volumes:
       - rabbitmq_data:/data
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -57,6 +57,7 @@ services:
     environment:
       DATABASE_URL: postgresql://studojo:studojo@postgres:5432/postgres
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      REDIS_URL: redis://redis:6379
       JWKS_URL: http://frontend:3000/api/auth/jwks
       HTTP_PORT: "8080"
       CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001
@@ -66,6 +67,8 @@ services:
       postgres:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   frontend-db-push:
@@ -80,6 +83,31 @@ services:
         condition: service_healthy
     restart: "no"
 
+  frontend-seed-examples:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+      target: build-env
+    volumes:
+      - ./scripts:/workspace/scripts:ro
+    environment:
+      DATABASE_URL: postgresql://studojo:studojo@postgres:5432/postgres
+      RESUME_SERVICE_URL: http://resume-service:8086
+      USE_LOCALSTACK: "true"
+      LOCALSTACK_ENDPOINT: http://localstack:4566
+      AZURE_STORAGE_ACCOUNT_NAME: test
+      AZURE_STORAGE_ACCOUNT_KEY: test
+      AZURE_STORAGE_CONTAINER_NAME: resumes
+      DOCKER_CONTAINER: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      frontend-db-push:
+        condition: service_completed_successfully
+      resume-service:
+        condition: service_started
+    command: [ "sh", "-c", "cd /src && node --loader tsx/esm /workspace/scripts/seed-resume-examples.ts" ]
+    restart: "no"
   frontend:
     build:
       context: ./apps/frontend
@@ -100,12 +128,26 @@ services:
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
       TWILIO_VERIFY_SERVICE_SID: ${TWILIO_VERIFY_SERVICE_SID}
+      RESUME_SERVICE_URL: http://resume-service:8086
+      CONTROL_PLANE_URL: http://control-plane:8080
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      USE_LOCALSTACK: "true"
+      LOCALSTACK_ENDPOINT: http://localstack:4566
+      AZURE_STORAGE_ACCOUNT_NAME: test
+      AZURE_STORAGE_ACCOUNT_KEY: test
+      AZURE_STORAGE_CONTAINER_NAME: resumes
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
       frontend-db-push:
+        condition: service_completed_successfully
+      resume-service:
+        condition: service_started
+      localstack:
+        condition: service_healthy
+      localstack-init:
         condition: service_completed_successfully
 
   admin-panel:
@@ -117,9 +159,12 @@ services:
     ports:
       - "3001:3001"
     environment:
+      DATABASE_URL: postgresql://studojo:studojo@postgres:5432/postgres
       VITE_CONTROL_PLANE_URL: http://localhost:8080
       NODE_ENV: development
     depends_on:
+      postgres:
+        condition: service_healthy
       control-plane:
         condition: service_started
 
@@ -174,7 +219,7 @@ services:
       - localstack_data:/var/lib/localstack
       - /var/run/docker.sock:/var/run/docker.sock
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:4566/_localstack/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -189,19 +234,21 @@ services:
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
       AWS_DEFAULT_REGION: us-east-1
-    entrypoint: ["/bin/sh", "-c"]
+    entrypoint: [ "/bin/sh", "-c" ]
     command:
       - |
+        set -e
         echo "Waiting for LocalStack S3..."
         until curl -s http://localstack:4566/_localstack/health | grep -q '"s3": "available"'; do
           sleep 2
         done
         echo "Creating buckets..."
-        aws --endpoint-url=http://localstack:4566 s3 mb s3://assignments || echo "assignments bucket exists"
-        aws --endpoint-url=http://localstack:4566 s3 mb s3://resumes || echo "resumes bucket exists"
-        aws --endpoint-url=http://localstack:4566 s3 mb s3://humanizer || echo "humanizer bucket exists"
-        aws --endpoint-url=http://localstack:4566 s3 mb s3://blog-images || echo "blog-images bucket exists"
+        aws --endpoint-url=http://localstack:4566 s3 mb s3://assignments 2>&1 | grep -v "bucket exists" || true
+        aws --endpoint-url=http://localstack:4566 s3 mb s3://resumes 2>&1 | grep -v "bucket exists" || true
+        aws --endpoint-url=http://localstack:4566 s3 mb s3://humanizer 2>&1 | grep -v "bucket exists" || true
+        aws --endpoint-url=http://localstack:4566 s3 mb s3://blog-images 2>&1 | grep -v "bucket exists" || true
         echo "Buckets ready!"
+        exit 0
     restart: "no"
 
   assignment-gen:
@@ -254,6 +301,7 @@ services:
       - "8086:8086"
     environment:
       PORT: "8086"
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -333,10 +381,10 @@ services:
   mailhog:
     image: mailhog/mailhog:latest
     ports:
-      - "8025:8025"  # Web UI
-      - "1025:1025"  # SMTP
+      - "8025:8025" # Web UI
+      - "1025:1025" # SMTP
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8025"]
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8025" ]
       interval: 5s
       timeout: 3s
       retries: 5

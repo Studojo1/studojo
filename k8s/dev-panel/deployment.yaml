@@ -43,15 +43,8 @@ spec:
               key: CONTROL_PLANE_URL
         - name: NODE_ENV
           value: "production"
-        - name: BETTER_AUTH_URL
-          value: "https://dev.studojo.com"
-        - name: BETTER_AUTH_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: better-auth-secret
-        - name: CORS_ORIGINS
-          value: "https://dev.studojo.com,https://studojo.com,https://studojo.pro"
+        - name: VITE_AUTH_URL
+          value: "https://studojo.com"
         livenessProbe:
           httpGet:
             path: /

@@ -54,3 +54,10 @@ echo "   Database: postgres"
 echo "   User: studojo"
 
 
+
+
+
+
+
+
+
