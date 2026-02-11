@@ -126,10 +126,10 @@ jobs:
           kubectl rollout status deployment/${{ inputs.k8s_deployment_name }} -n ${{ env.KUBERNETES_NAMESPACE }} --timeout=300s
 
       - name: Report to dev panel
-        if: always() && secrets.DEV_PANEL_WEBHOOK_URL != ''
+        if: always() && inputs.dev_panel_webhook_url != ''
         run: |
           STATUS="${{ job.status }}"
-          curl -X POST "${{ secrets.DEV_PANEL_WEBHOOK_URL }}" \
+          curl -X POST "${{ inputs.dev_panel_webhook_url }}" \
             -H "Content-Type: application/json" \
             -d "{
               \"service\": \"${{ inputs.service_name }}\",
