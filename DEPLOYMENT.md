@@ -1,8 +1,37 @@
-# Maverick Blog System Deployment Guide
+# Studojo Deployment Guide
 
-This guide covers deploying the Maverick blog system and migrating existing blog data.
+This guide covers deploying all Studojo services using GitHub Actions and manual deployment procedures.
 
-## Prerequisites
+## Automated Deployment (GitHub Actions)
+
+Deployment is automated via GitHub Actions. Simply push to the `master` or `main` branch to trigger deployment.
+
+### How It Works
+
+1. **Push to main/master** - Triggers the deployment workflow
+2. **Build & Push** - All Docker images are built and pushed to Azure Container Registry (ACR)
+3. **Deploy** - Images are deployed to Kubernetes cluster
+4. **Record** - Deployment is recorded in the control plane API
+
+### Required GitHub Secrets
+
+Configure these secrets in your GitHub repository:
+
+- `ACR_PASSWORD` - Azure Container Registry password
+- `AZURE_CREDENTIALS` - Azure service principal credentials (JSON)
+- `AKS_RESOURCE_GROUP` - Azure Kubernetes Service resource group
+- `AKS_CLUSTER_NAME` - Azure Kubernetes Service cluster name
+- `CONTROL_PLANE_API_TOKEN` - Token for recording deployments in control plane
+
+### Workflow File
+
+The deployment workflow is located at `.github/workflows/deploy.yml`.
+
+## Manual Deployment
+
+If you need to deploy manually or the automated workflow is not available:
+
+### Prerequisites
 
 1. **Azure CLI** logged in: `az login`
 2. **kubectl** configured for your Kubernetes cluster
@@ -12,19 +41,14 @@ This guide covers deploying the Maverick blog system and migrating existing blog
    - `AZURE_STORAGE_ACCOUNT_NAME` - Azure Storage account name
    - `AZURE_STORAGE_ACCOUNT_KEY` - Azure Storage account key
 
-## Deployment Steps
+### Manual Deployment Steps
 
-### 1. Build and Push Docker Image
+1. **Deploy All Applications**
 
 ```bash
-./scripts/build-and-deploy-maverick.sh
+cd k8s
+./deploy.sh
 ```
-
-This script will:
-- Build the Maverick Docker image
-- Push it to Azure Container Registry (ACR)
-- Apply database migrations
-- Deploy Maverick to Kubernetes
 
 ### 2. Run Database Migration (if not done automatically)
 
@@ -105,25 +129,38 @@ kubectl get ingress -n studojo
 kubectl logs -n studojo -l app=maverick --tail=50
 ```
 
-### 6. Set Ops Role for Users
+### 6. Set User Roles
 
-To access Maverick, users need the 'ops' role:
+To access different panels, users need appropriate roles:
 
+**Maverick (Blog Editor)**: Requires `ops` role
 ```sql
 UPDATE "user" SET role = 'ops' WHERE email = 'your@email.com';
 ```
 
-Or use the script:
+**Dev Panel**: Requires `dev` or `admin` role
+```sql
+UPDATE "user" SET role = 'dev' WHERE email = 'your@email.com';
+```
+
+Or use the scripts:
 
 ```bash
+# Set ops role for Maverick
 ./scripts/set-admin-user.sh your@email.com ops
+
+# Set dev role for Dev Panel
+./scripts/set-dev-user.sh your@email.com
 ```
 
 ## Access Points
 
+- **Frontend**: https://studojo.com
 - **Maverick Blog Editor**: https://maverick.studojo.com
-- **Public Blog**: https://studojo.com/blog (or your frontend domain)
+- **Public Blog**: https://studojo.com/blog
 - **Admin Panel**: https://admin.studojo.com
+- **Dev Panel**: https://dev.studojo.com (requires `dev` role)
+- **Partner Panel**: https://partners.studojo.com
 
 ## Troubleshooting
 
