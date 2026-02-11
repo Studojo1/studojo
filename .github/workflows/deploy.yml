@@ -38,7 +38,9 @@ jobs:
         with:
           context: ./apps/frontend
           push: true
-          tags: ${{ env.ACR_REGISTRY }}/frontend:${{ env.IMAGE_TAG }},${{ env.ACR_REGISTRY }}/frontend:latest
+          tags: |
+            ${{ env.ACR_REGISTRY }}/frontend:${{ env.IMAGE_TAG }}
+            ${{ env.ACR_REGISTRY }}/frontend:latest
           build-args: |
             VITE_CONTROL_PLANE_URL=https://api.studojo.com
 
@@ -47,7 +49,9 @@ jobs:
         with:
           context: ./apps/admin-panel
           push: true
-          tags: ${{ env.ACR_REGISTRY }}/admin-panel:${{ env.IMAGE_TAG }},${{ env.ACR_REGISTRY }}/admin-panel:latest
+          tags: |
+            ${{ env.ACR_REGISTRY }}/admin-panel:${{ env.IMAGE_TAG }}
+            ${{ env.ACR_REGISTRY }}/admin-panel:latest
           build-args: |
             VITE_CONTROL_PLANE_URL=https://api.studojo.com
 
@@ -56,70 +60,90 @@ jobs:
         with:
           context: ./apps/dev-panel
           push: true
-          tags: ${{ env.ACR_REGISTRY }}/dev-panel:${{ env.IMAGE_TAG }},${{ env.ACR_REGISTRY }}/dev-panel:latest
+          tags: |
+            ${{ env.ACR_REGISTRY }}/dev-panel:${{ env.IMAGE_TAG }}
+            ${{ env.ACR_REGISTRY }}/dev-panel:latest
 
       - name: Build and push Maverick
         uses: docker/build-push-action@v5
         with:
           context: ./apps/maverick
           push: true
-          tags: ${{ env.ACR_REGISTRY }}/maverick:${{ env.IMAGE_TAG }},${{ env.ACR_REGISTRY }}/maverick:latest
+          tags: |
+            ${{ env.ACR_REGISTRY }}/maverick:${{ env.IMAGE_TAG }}
+            ${{ env.ACR_REGISTRY }}/maverick:latest
 
       - name: Build and push Partner Panel
         uses: docker/build-push-action@v5
         with:
           context: ./apps/partner-panel
           push: true
-          tags: ${{ env.ACR_REGISTRY }}/partner-panel:${{ env.IMAGE_TAG }},${{ env.ACR_REGISTRY }}/partner-panel:latest
+          tags: |
+            ${{ env.ACR_REGISTRY }}/partner-panel:${{ env.IMAGE_TAG }}
+            ${{ env.ACR_REGISTRY }}/partner-panel:latest
 
       - name: Build and push Control Plane
         uses: docker/build-push-action@v5
         with:
           context: ./services/control-plane
           push: true
-          tags: ${{ env.ACR_REGISTRY }}/control-plane:${{ env.IMAGE_TAG }},${{ env.ACR_REGISTRY }}/control-plane:latest
+          tags: |
+            ${{ env.ACR_REGISTRY }}/control-plane:${{ env.IMAGE_TAG }}
+            ${{ env.ACR_REGISTRY }}/control-plane:latest
 
       - name: Build and push Resume Service
         uses: docker/build-push-action@v5
         with:
           context: ./services/resume-svc
           push: true
-          tags: ${{ env.ACR_REGISTRY }}/resume-service:${{ env.IMAGE_TAG }},${{ env.ACR_REGISTRY }}/resume-service:latest
+          tags: |
+            ${{ env.ACR_REGISTRY }}/resume-service:${{ env.IMAGE_TAG }}
+            ${{ env.ACR_REGISTRY }}/resume-service:latest
 
       - name: Build and push Resume Worker
         uses: docker/build-push-action@v5
         with:
           context: ./services/resume-worker
           push: true
-          tags: ${{ env.ACR_REGISTRY }}/resume-worker:${{ env.IMAGE_TAG }},${{ env.ACR_REGISTRY }}/resume-worker:latest
+          tags: |
+            ${{ env.ACR_REGISTRY }}/resume-worker:${{ env.IMAGE_TAG }}
+            ${{ env.ACR_REGISTRY }}/resume-worker:latest
 
       - name: Build and push Assignment Gen Worker
         uses: docker/build-push-action@v5
         with:
           context: ./services/assignment-gen-worker
           push: true
-          tags: ${{ env.ACR_REGISTRY }}/assignment-gen-worker:${{ env.IMAGE_TAG }},${{ env.ACR_REGISTRY }}/assignment-gen-worker:latest
+          tags: |
+            ${{ env.ACR_REGISTRY }}/assignment-gen-worker:${{ env.IMAGE_TAG }}
+            ${{ env.ACR_REGISTRY }}/assignment-gen-worker:latest
 
       - name: Build and push Humanizer Service
         uses: docker/build-push-action@v5
         with:
           context: ./services/humanizer-svc
           push: true
-          tags: ${{ env.ACR_REGISTRY }}/humanizer-svc:${{ env.IMAGE_TAG }},${{ env.ACR_REGISTRY }}/humanizer-svc:latest
+          tags: |
+            ${{ env.ACR_REGISTRY }}/humanizer-svc:${{ env.IMAGE_TAG }}
+            ${{ env.ACR_REGISTRY }}/humanizer-svc:latest
 
       - name: Build and push Humanizer Worker
         uses: docker/build-push-action@v5
         with:
           context: ./services/humanizer-worker
           push: true
-          tags: ${{ env.ACR_REGISTRY }}/humanizer-worker:${{ env.IMAGE_TAG }},${{ env.ACR_REGISTRY }}/humanizer-worker:latest
+          tags: |
+            ${{ env.ACR_REGISTRY }}/humanizer-worker:${{ env.IMAGE_TAG }}
+            ${{ env.ACR_REGISTRY }}/humanizer-worker:latest
 
       - name: Build and push Emailer Service
         uses: docker/build-push-action@v5
         with:
           context: ./services/emailer-service
           push: true
-          tags: ${{ env.ACR_REGISTRY }}/emailer-service:${{ env.IMAGE_TAG }},${{ env.ACR_REGISTRY }}/emailer-service:latest
+          tags: |
+            ${{ env.ACR_REGISTRY }}/emailer-service:${{ env.IMAGE_TAG }}
+            ${{ env.ACR_REGISTRY }}/emailer-service:latest
 
   deploy:
     needs: build-and-push
