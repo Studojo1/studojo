@@ -83,31 +83,6 @@ services:
         condition: service_healthy
     restart: "no"
 
-  frontend-seed-examples:
-    build:
-      context: ./apps/frontend
-      dockerfile: Dockerfile
-      target: build-env
-    volumes:
-      - ./scripts:/workspace/scripts:ro
-    environment:
-      DATABASE_URL: postgresql://studojo:studojo@postgres:5432/postgres
-      RESUME_SERVICE_URL: http://resume-service:8086
-      USE_LOCALSTACK: "true"
-      LOCALSTACK_ENDPOINT: http://localstack:4566
-      AZURE_STORAGE_ACCOUNT_NAME: test
-      AZURE_STORAGE_ACCOUNT_KEY: test
-      AZURE_STORAGE_CONTAINER_NAME: resumes
-      DOCKER_CONTAINER: "true"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      frontend-db-push:
-        condition: service_completed_successfully
-      resume-service:
-        condition: service_started
-    command: [ "sh", "-c", "cd /src && node --loader tsx/esm /workspace/scripts/seed-resume-examples.ts" ]
-    restart: "no"
   frontend:
     build:
       context: ./apps/frontend

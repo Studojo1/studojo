@@ -11,10 +11,12 @@ Studojo v2 is a microservices-based platform for student productivity tools, wit
 - **Document Humanization**: Structure-preserving document humanization service for assignment content
 - **Blog Management**: Rich text blog editor (Maverick) for content management
 - **Admin Panel**: User management, dissertation submissions, and career applications
+- **Dev Panel**: Developer monitoring, telemetry, CI/CD status, and live log streaming
 - **Partner Panel**: Partner management interface for company partners
 - **Payment Integration**: Razorpay integration for paid services
 - **Multi-Authentication**: JWT, phone OTP, Google OAuth, and Passkeys support
 - **Email Notifications**: Transactional emails via Azure Communication Services with user preferences
+- **Observability**: Azure Monitor integration, Kubernetes log streaming, and telemetry tracking
 
 ## Repository Structure
 
@@ -34,6 +36,12 @@ studojo/
 │   │   │   ├── components/       # Admin components
 │   │   │   ├── lib/              # API clients and auth
 │   │   │   └── routes/           # Admin routes (dashboard, users, dissertations, careers)
+│   │   └── Dockerfile
+│   ├── dev-panel/                # Developer monitoring panel (Port: 3004)
+│   │   ├── app/
+│   │   │   ├── components/       # Monitoring components
+│   │   │   ├── lib/              # API clients and auth
+│   │   │   └── routes/           # Dev routes (services, logs, metrics, ci-cd)
 │   │   └── Dockerfile
 │   ├── maverick/                 # Blog editor (Port: 3002)
 │   │   ├── app/
@@ -116,21 +124,23 @@ studojo/
 ├── k8s/                          # Kubernetes deployment configs
 │   ├── admin-panel/              # Admin panel deployment
 │   ├── assignment-gen-worker/   # Assignment worker deployment
+│   ├── azure-monitor/            # Azure Monitor daemonset and config
 │   ├── cert-manager/             # SSL certificate management
 │   ├── configmaps/               # Configuration maps
 │   ├── control-plane/            # Control plane deployment
-│   ├── frontend/                 # Frontend deployment and DB migration job
+│   ├── dev-panel/                # Dev panel deployment
+│   ├── emailer-service/          # Emailer service deployment
+│   ├── frontend/                 # Frontend deployment and DB migration jobs
+│   ├── humanizer-svc/            # Humanizer service deployment (HPA, PDB)
+│   ├── humanizer-worker/         # Humanizer worker deployment
 │   ├── ingress/                  # Ingress configuration
 │   ├── maverick/                 # Maverick deployment and migration jobs
+│   ├── partner-panel/            # Partner panel deployment
 │   ├── postgresql/               # PostgreSQL deployment and backup
 │   ├── rabbitmq/                 # RabbitMQ deployment
 │   ├── redis/                    # Redis deployment
-│   ├── resume-service/           # Resume service deployment
+│   ├── resume-service/           # Resume service deployment (HPA)
 │   ├── resume-worker/            # Resume worker deployment
-│   ├── humanizer-svc/            # Humanizer service deployment
-│   ├── humanizer-worker/         # Humanizer worker deployment
-│   ├── partner-panel/            # Partner panel deployment
-│   ├── emailer-service/          # Emailer service deployment
 │   ├── secrets/                  # Secret templates
 │   └── deploy.sh                 # Deployment script
 │
@@ -139,10 +149,9 @@ studojo/
 │   └── postgres/                 # PostgreSQL init scripts
 │
 ├── scripts/                      # Utility scripts
-│   ├── build-and-deploy-maverick.sh
-│   ├── migrate-blogs.ts          # Blog migration script
-│   ├── set-admin-user.sh         # Admin user setup
-│   └── upload-blog-images.ts     # Image upload script
+│   ├── port-forward-postgres.sh  # Port forwarding utilities
+│   ├── port-forward-postgres-bg.sh
+│   └── set-admin-user.sh         # Admin user setup
 │
 ├── data/                         # Data files
 │   ├── blog-images/              # Blog post images
@@ -160,10 +169,10 @@ studojo/
 │   └── worker-patterns.md
 │
 ├── docker-compose.yml            # Local development orchestration
-├── ARCHITECTURE.md               # This file
-├── DEPLOYMENT.md                 # Deployment guide
-├── README.rst                    # Project overview
-└── ADMIN_SETUP.md                # Admin setup guide
+├── README.md                     # Project overview
+├── doc/ARCHITECTURE.md           # This file
+├── DEPLOYMENT.md                 # Deployment guide (if exists)
+└── ADMIN_SETUP.md                # Admin setup guide (if exists)
 ```
 
 ## Architecture Diagram
@@ -385,12 +394,35 @@ graph TB
   - Dissertation submission review
   - Career application management
   - Dashboard with statistics
+  - Partner user management
 - **Routes**:
   - `/` - Dashboard
   - `/users` - User management
   - `/dissertations` - Dissertation submissions
   - `/careers` - Career applications
   - `/assignments` - Assignment management
+  - `/partner-users` - Partner user management
+
+#### Dev Panel (`apps/dev-panel`)
+- **Technology**: React Router v7, Vite, TypeScript
+- **Port**: 3004
+- **Access**: Requires `dev` or `admin` role
+- **Features**:
+  - Service monitoring and status tracking
+  - Live log streaming from Kubernetes pods via WebSocket
+  - Metrics dashboard with Azure Monitor integration
+  - CI/CD status from GitHub Actions
+  - Developer telemetry tracking
+  - Deployment history and rollback capabilities
+- **Routes**:
+  - `/` - Services overview
+  - `/services` - Service status and monitoring
+  - `/services/:name` - Individual service details
+  - `/logs` - Log querying and streaming
+  - `/metrics` - Metrics visualization
+  - `/ci-cd` - CI/CD status
+  - `/docs` - Documentation viewer
+  - `/docs/:slug` - Individual documentation pages
 
 #### Maverick Blog Editor (`apps/maverick`)
 - **Technology**: React Router v7, TipTap (rich text editor)
@@ -436,14 +468,21 @@ graph TB
   - Result event processing
   - Payment management (Razorpay integration)
   - Payment verification and job linking
+  - Developer observability (service monitoring, logs, metrics, CI/CD)
 - **API Endpoints**:
-  - `POST /v1/jobs` - Submit job (assignment-gen, resume-gen, resume-optimize)
+  - `POST /v1/jobs` - Submit job (assignment-gen, resume-gen, resume-optimize, humanizer)
   - `POST /v1/outlines/generate` - Generate assignment outline (free)
   - `POST /v1/outlines/edit` - Edit assignment outline (free)
   - `GET /v1/jobs` - List jobs
   - `GET /v1/jobs/:id` - Get job status
   - `POST /v1/payments/create-order` - Create payment order
   - `POST /v1/payments/verify` - Verify payment signature
+  - `GET /v1/dev/services` - List all services and status (dev panel)
+  - `GET /v1/dev/services/:service/history` - Get deployment history (dev panel)
+  - `GET /v1/dev/logs` - Query logs from Azure Monitor/Kubernetes (dev panel)
+  - `GET /v1/dev/logs/stream` - Stream logs via WebSocket (dev panel)
+  - `GET /v1/dev/metrics` - Query metrics from Azure Monitor (dev panel)
+  - `GET /v1/dev/ci-cd/status` - Get GitHub Actions CI/CD status (dev panel)
   - `GET /health` - Liveness
   - `GET /ready` - Readiness
 
@@ -521,7 +560,7 @@ graph TB
 
 ### Humanizer Service
 - **Technology**: Python 3.13, FastAPI
-- **Port**: 8000
+- **Port**: 8000 (8001 in docker-compose)
 - **Responsibilities**:
   - Structure-preserving document humanization
   - Paragraph-level content humanization using Rephrasy API
@@ -529,7 +568,8 @@ graph TB
   - Verification and repair of humanized content
   - Parallel processing of multiple paragraphs
 - **API Endpoints**:
-  - `POST /humanize` - Humanize a DOCX file (multipart/form-data)
+  - `POST /humanize` - Humanize a DOCX file (multipart/form-data or blob URL)
+  - `GET /humanize/:job_id/progress` - Get humanization progress for a job
   - `GET /health` - Health check
 - **Environment Variables**:
   - `REPHRASY_API_KEY`: Rephrasy API key (required)
@@ -802,6 +842,7 @@ All services are containerized and orchestrated via Docker Compose:
 - **frontend**: Node/Bun-based React app (Port: 3000)
 - **frontend-db-push**: Database migration runner (one-time job)
 - **admin-panel**: React Router app (Port: 3001)
+- **dev-panel**: Developer monitoring panel (Port: 3004)
 - **maverick**: Blog editor (Port: 3002)
 - **partner-panel**: Partner management (Port: 3003)
 - **control-plane**: Go service (Port: 8080)
@@ -809,7 +850,7 @@ All services are containerized and orchestrated via Docker Compose:
 - **assignment-gen-worker**: Go worker
 - **resume-service**: Go service (Port: 8086)
 - **resume-worker**: Go worker
-- **humanizer-svc**: Python FastAPI service (Port: 8000)
+- **humanizer-svc**: Python FastAPI service (Port: 8001)
 - **humanizer-worker**: Go worker
 - **emailer-service**: Go service (Port: 8087)
 - **mailhog**: Email visualizer for development (Port: 8025 web UI, 1025 SMTP)
