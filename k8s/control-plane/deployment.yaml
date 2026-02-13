@@ -68,6 +68,11 @@ spec:
             configMapKeyRef:
               name: app-config
               key: CORS_ORIGINS
+        - name: EMAILER_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: EMAILER_SERVICE_URL
         - name: RAZORPAY_MODE
           valueFrom:
             secretKeyRef:
