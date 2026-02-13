@@ -108,48 +108,6 @@ spec:
             name: admin-panel
             port:
               number: 3001
-  - host: studojo.pro
-    http:
-      paths:
-      - path: /admin
-        pathType: Prefix
-        backend:
-          service:
-            name: admin-panel
-            port:
-              number: 3001
-  - host: www.studojo.pro
-    http:
-      paths:
-      - path: /admin
-        pathType: Prefix
-        backend:
-          service:
-            name: admin-panel
-            port:
-              number: 3001
-  # Admin Panel - Dedicated Subdomain
-  - host: admin.studojo.pro
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: admin-panel
-            port:
-              number: 3001
-  # Maverick Blog Editor - Dedicated Subdomain
-  - host: maverick.studojo.pro
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: maverick
-            port:
-              number: 3002
   # Admin Panel - Dedicated Subdomain (.com)
   - host: admin.studojo.com
     http:

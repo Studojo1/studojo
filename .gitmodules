@@ -25,6 +25,9 @@
 [submodule "apps/frontend"]
 	path = apps/frontend
 	url = https://github.com/studojo/frontend.git
+[submodule "apps/dev-panel"]
+	path = apps/dev-panel
+	url = https://github.com/studojo/dev-panel.git
 [submodule "services/humanizer-svc"]
 	path = services/humanizer-svc
 	url = https://github.com/studojo/humanizer-svc.git
