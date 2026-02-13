@@ -104,6 +104,19 @@ Each service is maintained in its own repository:
 
 For detailed documentation on each service, refer to the README file in each service directory.
 
+## CI/CD and Deployment
+
+All services and applications have automated CI/CD pipelines using GitHub Actions. When code is pushed to the `main` branch, workflows automatically:
+
+1. Build Docker images
+2. Push to Azure Container Registry (ACR)
+3. Deploy to Azure Kubernetes Service (AKS)
+4. Record deployment in the Dev Panel
+
+For detailed CI/CD setup instructions, see [.github/CICD_SETUP.md](.github/CICD_SETUP.md).
+
+**Dev Panel**: Monitor deployments, view CI/CD status, and manage services at `https://dev.studojo.com` (requires `dev` or `admin` role).
+
 ## Architecture
 
 For a complete overview of the system architecture, message flows, and deployment details, see [doc/ARCHITECTURE.md](doc/ARCHITECTURE.md).
