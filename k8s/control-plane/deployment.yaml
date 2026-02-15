@@ -28,111 +28,121 @@ spec:
     spec:
       serviceAccountName: control-plane
       imagePullSecrets:
-      - name: acr-secret
+        - name: acr-secret
       initContainers:
-      - name: wait-for-postgres
-        image: postgres:16
-        command: ['sh', '-c', 'until pg_isready -h postgres.studojo.svc.cluster.local -U studojo; do echo "Waiting for PostgreSQL..."; sleep 2; done']
-      - name: wait-for-rabbitmq
-        image: rabbitmq:latest
-        command: ['sh', '-c', 'until rabbitmq-diagnostics -q ping 2>/dev/null || timeout 1 bash -c "</dev/tcp/rabbitmq.studojo.svc.cluster.local/5672" 2>/dev/null; do echo "Waiting for RabbitMQ..."; sleep 2; done']
+        - name: wait-for-postgres
+          image: postgres:16
+          command:
+            [
+              "sh",
+              "-c",
+              'until pg_isready -h postgres.studojo.svc.cluster.local -U studojo; do echo "Waiting for PostgreSQL..."; sleep 2; done',
+            ]
+        - name: wait-for-rabbitmq
+          image: rabbitmq:latest
+          command:
+            [
+              "sh",
+              "-c",
+              'until rabbitmq-diagnostics -q ping 2>/dev/null || timeout 1 bash -c "</dev/tcp/rabbitmq.studojo.svc.cluster.local/5672" 2>/dev/null; do echo "Waiting for RabbitMQ..."; sleep 2; done',
+            ]
       containers:
-      - name: control-plane
-        image: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io/control-plane:latest
-        ports:
-        - containerPort: 8080
-          name: http
-        env:
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: database-url
-        - name: RABBITMQ_URL
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: rabbitmq-url
-        - name: JWKS_URL
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: jwks-url
-        - name: HTTP_PORT
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: HTTP_PORT
-        - name: CORS_ORIGINS
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: CORS_ORIGINS
-        - name: EMAILER_SERVICE_URL
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: EMAILER_SERVICE_URL
-        - name: RAZORPAY_MODE
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: razorpay-mode
-        - name: RAZORPAY_KEY_PROD_ID
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: razorpay-key-prod-id
-        - name: RAZORPAY_KEY_PROD_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: razorpay-key-prod-secret
-        - name: RAZORPAY_KEY_TEST_ID
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: razorpay-key-test-id
-        - name: RAZORPAY_KEY_TEST_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: razorpay-key-test-secret
-        - name: AZURE_STORAGE_ACCOUNT_NAME
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: azure-storage-account-name
-        - name: AZURE_STORAGE_ACCOUNT_KEY
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: azure-storage-account-key
-        - name: KUBERNETES_NAMESPACE
-          value: "studojo"
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8080
-          initialDelaySeconds: 10
-          periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: 8080
-          initialDelaySeconds: 5
-          periodSeconds: 5
-          timeoutSeconds: 3
-          failureThreshold: 3
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "100m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
+        - name: control-plane
+          image: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io/control-plane:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: database-url
+            - name: RABBITMQ_URL
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: rabbitmq-url
+            - name: JWKS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: JWKS_URL
+            - name: HTTP_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: HTTP_PORT
+            - name: CORS_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: CORS_ORIGINS
+            - name: EMAILER_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: EMAILER_SERVICE_URL
+            - name: RAZORPAY_MODE
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: razorpay-mode
+            - name: RAZORPAY_KEY_PROD_ID
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: razorpay-key-prod-id
+            - name: RAZORPAY_KEY_PROD_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: razorpay-key-prod-secret
+            - name: RAZORPAY_KEY_TEST_ID
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: razorpay-key-test-id
+            - name: RAZORPAY_KEY_TEST_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: razorpay-key-test-secret
+            - name: AZURE_STORAGE_ACCOUNT_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: azure-storage-account-name
+            - name: AZURE_STORAGE_ACCOUNT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: azure-storage-account-key
+            - name: KUBERNETES_NAMESPACE
+              value: "studojo"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
 ---
 apiVersion: v1
 kind: Service
@@ -142,9 +152,9 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - port: 8080
-    targetPort: 8080
-    protocol: TCP
-    name: http
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
   selector:
     app: control-plane

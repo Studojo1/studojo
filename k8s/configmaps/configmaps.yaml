@@ -8,23 +8,24 @@ data:
   HTTP_PORT: "8080"
   CORS_ORIGINS: "https://studojo.com,https://www.studojo.com,https://dev.studojo.com,https://admin.studojo.com,https://maverick.studojo.com"
   EMAILER_SERVICE_URL: "http://emailer-service:8087"
-  
+  JWKS_URL: "http://frontend:3000/api/auth/jwks"
+
   # Frontend Config
   NODE_ENV: "production"
   BETTER_AUTH_URL: "https://studojo.com"
   CONTROL_PLANE_URL: "http://control-plane:8080"
   MAVERICK_URL: "https://maverick.studojo.com"
-  
+
   # Resume Service Config
   PORT: "8086"
-  
+
   # Assignment Gen Worker Config
   RESULTS_EXCHANGE: "cp.results"
   USE_LOCALSTACK: "false"
   AZURE_STORAGE_CONTAINER_NAME: "assignments"
   PYTHON_PATH: "python3"
   ASSIGNMENT_GEN_SCRIPT_PATH: "/app/assignment-gen/worker_generate.py"
-  
+
   # Resume Worker Config
   RESULTS_EXCHANGE_RESUME: "cp.results"
   USE_LOCALSTACK_RESUME: "false"
@@ -39,8 +40,8 @@ data:
 
   # Humanizer Config
   HUMANIZER_MAX_PARAGRAPHS: "1000"
-  HUMANIZER_TIMEOUT_SECONDS: "900"  # 15 minutes for large documents
+  HUMANIZER_TIMEOUT_SECONDS: "900" # 15 minutes for large documents
   LOCALSTACK_ENDPOINT: "http://localstack:4566"
-  
+
   # Redis Config
   redis-url: "redis://redis:6379"
