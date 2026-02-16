@@ -144,6 +144,10 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 3
             failureThreshold: 3
+          volumeMounts:
+            - name: doc-files
+              mountPath: /app/doc
+              readOnly: true
           resources:
             requests:
               memory: "256Mi"
@@ -151,6 +155,10 @@ spec:
             limits:
               memory: "512Mi"
               cpu: "500m"
+      volumes:
+        - name: doc-files
+          configMap:
+            name: doc-files
 ---
 apiVersion: v1
 kind: Service
