@@ -54,7 +54,7 @@ spec:
           valueFrom:
             secretKeyRef:
               name: app-secrets
-              key: azure-openai-key
+              key: azure-openai-api-key
         - name: AZURE_OPENAI_ENDPOINT
           valueFrom:
             secretKeyRef:
