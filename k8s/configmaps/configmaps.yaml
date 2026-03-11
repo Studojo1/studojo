@@ -49,3 +49,4 @@ data:
   INTERNREACH_GMAIL_REDIRECT_URI: "https://api.studojo.com/api/v1/gmail/oauth/callback"
   INTERNREACH_AZURE_OPENAI_DEPLOYMENT: "gpt-5-mini"
   INTERNREACH_FRONTEND_URL: "https://studojo.com"
+  JOB_OUTREACH_SERVICE_URL: "http://job-outreach-svc:8000"
