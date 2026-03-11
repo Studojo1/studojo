@@ -1,0 +1,122 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: job-outreach-svc
+  namespace: studojo
+  labels:
+    app: job-outreach-svc
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: job-outreach-svc
+  template:
+    metadata:
+      labels:
+        app: job-outreach-svc
+    spec:
+      imagePullSecrets:
+      - name: acr-secret
+      containers:
+      - name: job-outreach-svc
+        image: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io/job-outreach-svc:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: database-url
+        - name: APOLLO_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: apollo-api-key
+        - name: GMAIL_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: gmail-client-id
+        - name: GMAIL_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: gmail-client-secret
+        - name: AZURE_OPENAI_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: azure-openai-key
+        - name: AZURE_OPENAI_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: azure-openai-endpoint
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: jwt-secret-key
+        - name: GMAIL_REDIRECT_URI
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: INTERNREACH_GMAIL_REDIRECT_URI
+        - name: AZURE_OPENAI_DEPLOYMENT
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: INTERNREACH_AZURE_OPENAI_DEPLOYMENT
+        - name: FRONTEND_URL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: INTERNREACH_FRONTEND_URL
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: job-outreach-svc
+  namespace: studojo
+  labels:
+    app: job-outreach-svc
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: job-outreach-svc
