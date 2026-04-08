@@ -38,6 +38,11 @@ spec:
             configMapKeyRef:
               name: app-config
               key: PORT
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: openai-api-key
         livenessProbe:
           httpGet:
             path: /health
